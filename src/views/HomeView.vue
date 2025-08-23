@@ -130,36 +130,37 @@ const estaFechado = computed(() => !loading.value && !configHorarios.value);
 const agendaDoDia = computed(() => {
     if (!configHorarios.value) return [];
     const agenda = [];
-    const parseTime = str => str ? parseInt(str.split(':')[0]) * 60 + parseInt(str.split(':')[1]) : 0;
-    const formatTime = totalMinutes => `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
+    const parseTime = str => {
+        if (!str) return 0;
+        // Trata string ISO ou formato hora local
+        if (str.includes('T')) {
+            const date = new Date(str);
+            return date.getHours() * 60 + date.getMinutes();
+        }
+        return parseInt(str.split(':')[0]) * 60 + parseInt(str.split(':')[1]);
+    };
+    const formatTime = totalMinutes => 
+        `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
 
-    // Definir início e fim do dia
     let minutoAtual = parseTime(configHorarios.value.InicioManha);
-    const almocoDe = parseTime(configHorarios.value.FimManha);
-    const almocoAte = parseTime(configHorarios.value.InicioTarde);
-    const fimDoDia = parseTime(configHorarios.value.FimTarde || configHorarios.value.FimManha);
+    const fimManha = parseTime(configHorarios.value.FimManha);
+    const inicioTarde = parseTime(configHorarios.value.InicioTarde);
+    const fimDoDia = parseTime(configHorarios.value.FimTarde);
     
-    const intervaloMinutos = 30; // Intervalo entre horários disponíveis
-    const agendamentosOrdenados = [...agendamentosDoDia.value].sort((a, b) => 
-        new Date(a.DataHoraISO) - new Date(b.DataHoraISO)
-    );
-    
-    while (minutoAtual < fimDoDia) {
-        // Pular horário de almoço
-        if (minutoAtual >= almocoDe && minutoAtual < almocoAte) {
-            minutoAtual = almocoAte;
+    const intervaloMinutos = 30;
+    console.log('Agendamentos do dia:', agendamentosDoDia.value); // Debug
+
+    while (minutoAtual <= fimDoDia) {
+        if (minutoAtual === fimManha) {
+            minutoAtual = inicioTarde;
             continue;
         }
 
         const dataSlot = new Date(dataExibida.value);
         dataSlot.setHours(Math.floor(minutoAtual/60), minutoAtual%60, 0, 0);
         
-        // Verificar se existe agendamento neste horário
-        const agendamentoExistente = agendamentosOrdenados.find(ag => {
-            const horaAgendamento = parseTime(new Date(ag.DataHoraISO).toLocaleTimeString('pt-BR', { 
-                hour: '2-digit', 
-                minute: '2-digit' 
-            }));
+        const agendamentoExistente = agendamentosDoDia.value.find(ag => {
+            const horaAgendamento = parseTime(ag.DataHoraISO);
             return horaAgendamento === minutoAtual;
         });
 
@@ -172,7 +173,7 @@ const agendaDoDia = computed(() => {
                 detalhes: `${agendamentoExistente.servicoNome} - ${agendamentoExistente.duracaoMinutos} min`,
                 timestamp: dataSlot.getTime()
             });
-            minutoAtual += agendamentoExistente.duracaoMinutos;
+            minutoAtual += parseInt(agendamentoExistente.duracaoMinutos) || intervaloMinutos;
         } else {
             agenda.push({
                 tipo: 'livre',
@@ -183,43 +184,78 @@ const agendaDoDia = computed(() => {
             minutoAtual += intervaloMinutos;
         }
     }
-
     return agenda;
 });
 
-// --- BUSCA DE DADOS ---
-const fetchDataParaDia = async (data) => {
-    loading.value = true;
-    configHorarios.value = null;
-    agendamentosDoDia.value = [];
-
-    const diaDaSemana = data.getDay();
-    const docRef = doc(db, 'Horarios', String(diaDaSemana));
-    const docSnap = await getDoc(docRef);
-
-    if (docSnap.exists() && docSnap.data().InicioManha) {
-        configHorarios.value = docSnap.data();
-        const inicioDia = new Date(data); inicioDia.setHours(0, 0, 0, 0);
-        const fimDia = new Date(data); fimDia.setHours(23, 59, 59, 999);
-        const q = query(collection(db, 'Agendamentos'), where('DataHoraISO', '>=', inicioDia.toISOString()), where('DataHoraISO', '<=', fimDia.toISOString()), where('Status', '==', 'Agendado'), orderBy('DataHoraISO'));
-        const querySnapshot = await getDocs(q);
-        agendamentosDoDia.value = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-    }
-    loading.value = false;
-};
-
 const fetchServicos = async () => {
     try {
-        const q = query(collection(db, "Servicos"), where("ativo", "==", true));
+        const servicosRef = collection(db, "Servicos");
+        const q = query(servicosRef, where("ativo", "==", true));
         const querySnapshot = await getDocs(q);
-        listaServicos.value = querySnapshot.docs.map(d => ({ 
-            id: d.id, 
-            ...d.data(),
-            nome: d.data().nome || d.data().Nome // Adicionar fallback para diferentes casos
-        }));
-        console.log('Serviços carregados:', listaServicos.value); // Debug
+        
+        if (querySnapshot.empty) {
+            console.warn('Nenhum serviço encontrado');
+            return;
+        }
+
+        listaServicos.value = querySnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                nome: data.nome || data.Nome,
+                duracaoMinutos: data.duracaoMinutos || data.duracao || 30,
+                ativo: true
+            };
+        });
+        
+        console.log('Serviços carregados:', listaServicos.value);
     } catch (error) {
         console.error('Erro ao carregar serviços:', error);
+    }
+};
+
+const fetchDataParaDia = async (data) => {
+    try {
+        loading.value = true;
+        const diaDaSemana = data.getDay();
+        const horariosRef = doc(db, 'Horarios', String(diaDaSemana));
+        const horariosSnap = await getDoc(horariosRef);
+
+        if (!horariosSnap.exists()) {
+            console.warn('Horários não encontrados para este dia');
+            configHorarios.value = null;
+            return;
+        }
+
+        configHorarios.value = horariosSnap.data();
+        console.log('Horários configurados:', configHorarios.value); // Debug
+
+        const inicioDia = new Date(data);
+        inicioDia.setHours(0, 0, 0, 0);
+        
+        const fimDia = new Date(data);
+        fimDia.setHours(23, 59, 59, 999);
+
+        const agendamentosRef = collection(db, 'Agendamentos');
+        const q = query(
+            agendamentosRef,
+            where('DataHoraISO', '>=', inicioDia.toISOString()),
+            where('DataHoraISO', '<=', fimDia.toISOString()),
+            where('Status', '==', 'Agendado'),
+            orderBy('DataHoraISO')
+        );
+
+        const querySnapshot = await getDocs(q);
+        agendamentosDoDia.value = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        
+        console.log('Agendamentos encontrados:', agendamentosDoDia.value);
+    } catch (error) {
+        console.error('Erro ao buscar dados:', error);
+    } finally {
+        loading.value = false;
     }
 };
 
