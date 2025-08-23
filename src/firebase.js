@@ -1,15 +1,24 @@
-// ARQUIVO: src/firebase.js (versão para produção)
+// ARQUIVO: src/firebase.js (VERSÃO FINAL E SEGURA)
 
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 
-// Decodifica a string JSON da variável de ambiente
-const firebaseConfig = JSON.parse(import.meta.env.VITE_FIREBASE_CONFIG);
+// Monta o objeto de configuração a partir de variáveis de ambiente individuais
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
+};
 
-// Inicializa o Firebase
+// Validação para garantir que as variáveis foram carregadas
+if (!firebaseConfig.apiKey) {
+  throw new Error("Variáveis de ambiente do Firebase não foram carregadas corretamente. Verifique sua configuração no Vercel e o prefixo VITE_.");
+}
+
 const app = initializeApp(firebaseConfig);
-
-// Obtém uma referência ao serviço Firestore e a exporta
 const db = getFirestore(app);
 
 export { db };
