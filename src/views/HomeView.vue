@@ -136,25 +136,42 @@ const dataFormatada = computed(() => dataExibida.value.toLocaleDateString('pt-BR
 const estaFechado = computed(() => !loading.value && !configHorarios.value);
 
 const timeSlots = computed(() => {
-  if (!configHorarios.value) return [];
+  if (!configHorarios.value || !configHorarios.value.InicioManha) {
+    return []; // Condição de guarda mais forte
+  }
+
   const slots = [];
   const agora = new Date();
-  
+
   const parseTime = (timeStr) => {
-    if (!timeStr) return null;
+    if (!timeStr || typeof timeStr !== 'string') return 0;
     const [h, m] = timeStr.split(':').map(Number);
-    return h * 60 + m;
+    return (h || 0) * 60 + (m || 0);
+  };
+
+  const formatTime = (totalMinutes) => {
+    const hours = String(Math.floor(totalMinutes / 60)).padStart(2, '0');
+    const minutes = String(totalMinutes % 60).padStart(2, '0');
+    return `${hours}:${minutes}`;
   };
 
   let minutoAtual = parseTime(configHorarios.value.InicioManha);
   const fimManha = parseTime(configHorarios.value.FimManha);
   const inicioTarde = parseTime(configHorarios.value.InicioTarde);
   const fimTarde = parseTime(configHorarios.value.FimTarde);
-  const fimDoDia = fimTarde || fimManha;
+  const fimDoDia = fimTarde > 0 ? fimTarde : fimManha;
 
   const agendamentosOrdenados = [...agendamentosDoDia.value].sort((a, b) => new Date(a.DataHoraISO) - new Date(b.DataHoraISO));
+  let agendamentoIndex = 0;
 
-  while (minutoAtual < fimDoDia) {
+  // Loop de segurança para evitar travamentos
+  let iteracoes = 0;
+  const maxIteracoes = 200;
+
+  while (minutoAtual < fimDoDia && iteracoes < maxIteracoes) {
+    iteracoes++;
+    
+    // Pula o horário de almoço
     if (inicioTarde && minutoAtual >= fimManha && minutoAtual < inicioTarde) {
       minutoAtual = inicioTarde;
       continue;
@@ -163,7 +180,12 @@ const timeSlots = computed(() => {
     const slotDate = new Date(dataExibida.value);
     slotDate.setHours(Math.floor(minutoAtual / 60), minutoAtual % 60, 0, 0);
 
-    const agendamentoNesteSlot = agendamentosOrdenados.find(a => new Date(a.DataHoraISO).getTime() === slotDate.getTime());
+    const proximoAgendamento = agendamentosOrdenados[agendamentoIndex];
+    let agendamentoNesteSlot = null;
+
+    if (proximoAgendamento && parseTime(new Date(proximoAgendamento.DataHoraISO).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})) === minutoAtual) {
+      agendamentoNesteSlot = proximoAgendamento;
+    }
 
     let status = 'livre';
     if (agendamentoNesteSlot) {
@@ -171,20 +193,36 @@ const timeSlots = computed(() => {
     } else if (slotDate < agora && dataExibida.value.toDateString() === agora.toDateString()) {
       status = 'passado';
     }
-
-    slots.push({
-      timestamp: slotDate.getTime(),
-      horarioFormatado: slotDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-      agendamento: agendamentoNesteSlot || null,
-      status
-    });
-
+    
+    // Adiciona o slot APENAS se não for um horário já ocupado (para não duplicar)
+    if (status !== 'ocupado') {
+      slots.push({
+        timestamp: slotDate.getTime(),
+        horarioFormatado: formatTime(minutoAtual),
+        agendamento: null,
+        status
+      });
+    }
+    
+    // Adiciona o agendamento real como um slot
     if (agendamentoNesteSlot) {
+      slots.push({
+        timestamp: slotDate.getTime(),
+        horarioFormatado: formatTime(minutoAtual),
+        agendamento: agendamentoNesteSlot,
+        status: 'ocupado'
+      });
       minutoAtual += agendamentoNesteSlot.duracaoMinutos;
+      agendamentoIndex++;
     } else {
-      minutoAtual += 15; // Intervalo mínimo entre horários disponíveis (ex: 15 min)
+      minutoAtual += 15; // Intervalo para mostrar próximos horários livres
     }
   }
+  
+  if (iteracoes >= maxIteracoes) {
+    console.error("Loop infinito detectado na geração de timeSlots!");
+  }
+
   return slots;
 });
 
