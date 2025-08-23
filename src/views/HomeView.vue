@@ -20,11 +20,16 @@
     <v-main class="bg-surface">
       <v-container fluid>
         <v-row align="center" class="mb-3">
-          <v-col><h1 class="text-h4 font-weight-bold">Agenda</h1><p class="text-subtitle-1 text-medium-emphasis">{{ dataFormatada }}</p></v-col>
+          <v-col>
+            <h1 class="text-h4 font-weight-bold">Agenda</h1>
+            <p class="text-subtitle-1 text-medium-emphasis">{{ dataFormatada }}</p>
+          </v-col>
         </v-row>
 
         <v-slide-y-transition mode="out-in">
-          <div v-if="loading" class="text-center pa-16"><v-progress-circular indeterminate color="primary" size="64"></v-progress-circular></div>
+          <div v-if="loading" class="text-center pa-16">
+            <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
+          </div>
           <div v-else-if="estaFechado">
             <v-card variant="tonal" class="text-center pa-16 d-flex flex-column justify-center align-center">
               <v-icon size="80" color="grey-lighten-1">mdi-door-closed-lock</v-icon>
@@ -41,18 +46,17 @@
                     </div>
                   </template>
                   <v-chip :color="item.tipo === 'agendamento' ? 'primary' : 'success'" variant="flat" label>
-                    <v-icon start :icon="item.tipo === 'agendamento' ? 'mdi-account-check' : 'mdi-clock-outline'"></v-icon>
+                    <v-icon start :icon="item.tipo === 'agendamento' ? 'mdi-account-check' : 'mdi-plus-box-outline'"></v-icon>
                     {{ item.titulo }}
                   </v-chip>
                   <div v-if="item.tipo === 'agendamento'" class="text-caption text-medium-emphasis mt-1 ml-1">{{ item.detalhes }}</div>
+                  <div v-else class="text-caption text-medium-emphasis mt-1 ml-1">Clique para adicionar um novo agendamento</div>
                 </v-list-item>
               </template>
             </v-list>
           </v-card>
         </v-slide-y-transition>
-
-        <v-fab icon="mdi-plus" class="fab-gradient" location="bottom end" size="large" fixed app appear @click="abrirModalParaNovoVazio"></v-fab>
-
+        
         <v-dialog v-model="modalAberto" max-width="500px" persistent>
           <v-card class="pa-4">
             <v-card-title class="text-h5">{{ editando ? 'Editar' : 'Novo' }} Agendamento</v-card-title>
@@ -92,7 +96,6 @@
 .list-item-hover { transition: background-color 0.2s ease-in-out; }
 .list-item-hover:hover { background-color: rgba(var(--v-theme-on-surface), 0.04); cursor: pointer; }
 .border-bottom { border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08); }
-.fab-gradient { background: linear-gradient(45deg, #42a5f5 30%, #66bb6a 90%); color: white; }
 </style>
 
 <script setup>
@@ -120,50 +123,31 @@ const estaFechado = computed(() => !loading.value && !configHorarios.value);
 
 const agendaDoDia = computed(() => {
     if (!configHorarios.value) return [];
-
+    const agenda = [];
     const parseTime = str => str ? parseInt(str.split(':')[0]) * 60 + parseInt(str.split(':')[1]) : null;
     const formatTime = totalMinutes => `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
-
     let minutoAtual = parseTime(configHorarios.value.InicioManha);
     const fimDoDia = parseTime(configHorarios.value.FimTarde || configHorarios.value.FimManha);
-    const agenda = [];
-
+    if (minutoAtual === null || fimDoDia === null) return [];
+    
     const agendamentosOrdenados = [...agendamentosDoDia.value].sort((a, b) => new Date(a.DataHoraISO) - new Date(b.DataHoraISO));
 
     agendamentosOrdenados.forEach(ag => {
         const inicioAgendamentoMinutos = parseTime(new Date(ag.DataHoraISO).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-
         if (minutoAtual < inicioAgendamentoMinutos) {
             const dataSlotLivre = new Date(dataExibida.value);
             dataSlotLivre.setHours(Math.floor(minutoAtual / 60), minutoAtual % 60, 0, 0);
-            agenda.push({
-                tipo: 'livre',
-                horarioFormatado: formatTime(minutoAtual),
-                titulo: 'Horário Vago',
-                timestamp: dataSlotLivre.getTime()
-            });
+            agenda.push({ tipo: 'livre', horarioFormatado: formatTime(minutoAtual), titulo: 'Horário Vago', timestamp: dataSlotLivre.getTime() });
         }
-        agenda.push({
-            tipo: 'agendamento',
-            ...ag,
-            horarioFormatado: formatTime(inicioAgendamentoMinutos),
-            titulo: ag.NomeCliente,
-            detalhes: `${ag.servicoNome} - ${ag.duracaoMinutos} min`
-        });
+        agenda.push({ tipo: 'agendamento', ...ag, horarioFormatado: formatTime(inicioAgendamentoMinutos), titulo: ag.NomeCliente, detalhes: `${ag.servicoNome} - ${ag.duracaoMinutos} min` });
         minutoAtual = inicioAgendamentoMinutos + (ag.duracaoMinutos || 60);
     });
 
     if (minutoAtual < fimDoDia) {
         const dataSlotLivreFinal = new Date(dataExibida.value);
         dataSlotLivreFinal.setHours(Math.floor(minutoAtual / 60), minutoAtual % 60, 0, 0);
-        agenda.push({
-            tipo: 'livre',
-            horarioFormatado: formatTime(minutoAtual),
-            titulo: 'Horário Vago',
-            timestamp: dataSlotLivreFinal.getTime()
-        });
+        agenda.push({ tipo: 'livre', horarioFormatado: formatTime(minutoAtual), titulo: 'Horário Vago', timestamp: dataSlotLivreFinal.getTime() });
     }
-
     return agenda;
 });
 
@@ -187,16 +171,9 @@ const fetchAgendamentos = async (data) => {
     agendamentosDoDia.value = [];
     const inicioDia = new Date(data); inicioDia.setHours(0, 0, 0, 0);
     const fimDia = new Date(data); fimDia.setHours(23, 59, 59, 999);
-    const q = query(collection(db, 'Agendamentos'),
-        where('DataHoraISO', '>=', inicioDia.toISOString()),
-        where('DataHoraISO', '<=', fimDia.toISOString()),
-        where('Status', '==', 'Agendado'),
-        orderBy('DataHoraISO')
-    );
+    const q = query(collection(db, 'Agendamentos'), where('DataHoraISO', '>=', inicioDia.toISOString()), where('DataHoraISO', '<=', fimDia.toISOString()), where('Status', '==', 'Agendado'), orderBy('DataHoraISO'));
     const querySnapshot = await getDocs(q);
-    const agendamentos = [];
-    querySnapshot.forEach(docItem => agendamentos.push({ id: docItem.id, ...docItem.data() }));
-    agendamentosDoDia.value = agendamentos;
+    agendamentosDoDia.value = querySnapshot.docs.map(docItem => ({ id: docItem.id, ...docItem.data() }));
 };
 
 const fetchServicos = async () => {
@@ -204,7 +181,6 @@ const fetchServicos = async () => {
         const q = query(collection(db, "Servicos"), where("ativo", "==", true));
         const querySnapshot = await getDocs(q);
         listaServicos.value = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        console.log("Serviços carregados:", listaServicos.value);
     } catch (error) {
         console.error("Erro ao buscar serviços:", error);
     }
