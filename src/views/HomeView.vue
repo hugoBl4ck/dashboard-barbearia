@@ -123,30 +123,62 @@ const estaFechado = computed(() => !loading.value && !configHorarios.value);
 
 const agendaDoDia = computed(() => {
     if (!configHorarios.value) return [];
+
     const agenda = [];
     const parseTime = str => str ? parseInt(str.split(':')[0]) * 60 + parseInt(str.split(':')[1]) : null;
     const formatTime = totalMinutes => `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
+    
+    // Define o intervalo de tempo para os slots (ex: 30 minutos)
+    const INTERVALO_MINUTOS = 30;
+
     let minutoAtual = parseTime(configHorarios.value.InicioManha);
     const fimDoDia = parseTime(configHorarios.value.FimTarde || configHorarios.value.FimManha);
-    if (minutoAtual === null || fimDoDia === null) return [];
-    
-    const agendamentosOrdenados = [...agendamentosDoDia.value].sort((a, b) => new Date(a.DataHoraISO) - new Date(b.DataHoraISO));
 
-    agendamentosOrdenados.forEach(ag => {
-        const inicioAgendamentoMinutos = parseTime(new Date(ag.DataHoraISO).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-        if (minutoAtual < inicioAgendamentoMinutos) {
-            const dataSlotLivre = new Date(dataExibida.value);
-            dataSlotLivre.setHours(Math.floor(minutoAtual / 60), minutoAtual % 60, 0, 0);
-            agenda.push({ tipo: 'livre', horarioFormatado: formatTime(minutoAtual), titulo: 'Horário Vago', timestamp: dataSlotLivre.getTime() });
-        }
-        agenda.push({ tipo: 'agendamento', ...ag, horarioFormatado: formatTime(inicioAgendamentoMinutos), titulo: ag.NomeCliente, detalhes: `${ag.servicoNome} - ${ag.duracaoMinutos} min` });
-        minutoAtual = inicioAgendamentoMinutos + (ag.duracaoMinutos || 60);
+    const agendamentosDoDiaMap = new Map();
+    agendamentosDoDia.value.forEach(ag => {
+      const inicioAg = parseTime(new Date(ag.DataHoraISO).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}));
+      // Marca todos os minutos que este agendamento ocupa
+      for (let i = 0; i < ag.duracaoMinutos; i++) {
+        agendamentosDoDiaMap.set(inicioAg + i, ag);
+      }
     });
 
-    if (minutoAtual < fimDoDia) {
-        const dataSlotLivreFinal = new Date(dataExibida.value);
-        dataSlotLivreFinal.setHours(Math.floor(minutoAtual / 60), minutoAtual % 60, 0, 0);
-        agenda.push({ tipo: 'livre', horarioFormatado: formatTime(minutoAtual), titulo: 'Horário Vago', timestamp: dataSlotLivreFinal.getTime() });
+    while (minutoAtual < fimDoDia) {
+        const horaAlmocoInicio = parseTime(configHorarios.value.FimManha);
+        const horaAlmocoFim = parseTime(configHorarios.value.InicioTarde);
+        if (horaAlmocoInicio && horaAlmocoFim && minutoAtual >= horaAlmocoInicio && minutoAtual < horaAlmocoFim) {
+            minutoAtual = horaAlmocoFim;
+            continue;
+        }
+
+        const agendamento = agendamentosDoDiaMap.get(minutoAtual);
+
+        if (agendamento && parseTime(new Date(agendamento.DataHoraISO).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})) === minutoAtual) {
+            // Se o minuto atual é o início de um agendamento, mostra o agendamento
+            agenda.push({
+                tipo: 'agendamento',
+                ...agendamento,
+                horarioFormatado: formatTime(minutoAtual),
+                titulo: agendamento.NomeCliente,
+                detalhes: `${agendamento.servicoNome} - ${agendamento.duracaoMinutos} min`,
+                timestamp: new Date(dataExibida.value).setHours(0,0,0,0) + minutoAtual * 60000
+            });
+            minutoAtual += agendamento.duracaoMinutos;
+        } else if (!agendamento) {
+            // Se o minuto atual está livre, mostra um slot vago
+            const dataSlotLivre = new Date(dataExibida.value);
+            dataSlotLivre.setHours(Math.floor(minutoAtual / 60), minutoAtual % 60, 0, 0);
+            agenda.push({
+                tipo: 'livre',
+                horarioFormatado: formatTime(minutoAtual),
+                titulo: 'Horário Vago',
+                timestamp: dataSlotLivre.getTime()
+            });
+            minutoAtual += INTERVALO_MINUTOS;
+        } else {
+            // Se o minuto atual está no meio de um agendamento, apenas avança
+            minutoAtual++;
+        }
     }
     return agenda;
 });
