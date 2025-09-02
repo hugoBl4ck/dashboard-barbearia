@@ -1,7 +1,7 @@
-// ARQUIVO: src/router/index.js
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
-import AnalyticsView from '../views/AnalyticsView.vue' // Importa a nova view
+import ClientesView from '../views/ClientesView.vue'
+import AnalyticsView from '../views/AnalyticsView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -12,15 +12,16 @@ const router = createRouter({
       component: HomeView
     },
     {
-      path: '/analytics', // Rota para a página de análises
-      name: 'analytics',
-      component: () => import('../views/AnalyticsView.vue')
-    },
-    {
-      path: '/clientes', // <-- ADICIONA A NOVA ROTA
+      path: '/clientes',
       name: 'clientes',
       component: ClientesView
+    },
+    {
+      path: '/analytics',
+      name: 'analytics',
+      component: AnalyticsView
     }
-      ]
+  ]
 })
+
 export default router
