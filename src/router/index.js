@@ -15,8 +15,12 @@ const router = createRouter({
       path: '/analytics', // Rota para a página de análises
       name: 'analytics',
       component: () => import('../views/AnalyticsView.vue')
+    },
+    {
+      path: '/clientes', // <-- ADICIONA A NOVA ROTA
+      name: 'clientes',
+      component: ClientesView
     }
-    // Adicione a rota /clientes aqui quando a criarmos
-  ]
+      ]
 })
 export default router

@@ -64,9 +64,9 @@
             <v-card class="slot-card" :variant="slot.tipo === 'livre' ? 'outlined' : 'flat'" :color="getSlotColor(slot)" @click="handleItemClick(slot)" :disabled="slot.tipo === 'passado'">
               <v-card-text class="text-center">
                 <div class="font-weight-bold">{{ slot.horarioFormatado }}</div>
-                <div class="text-caption truncate-text" v-if="slot.tipo === 'agendamento'">{{ slot.titulo }}</div>
+                <div class="text-subtitle-2 truncate-text" v-if="slot.tipo === 'agendamento'">{{ slot.titulo }}</div>
                 <div class="text-caption" v-else>{{ slot.titulo }}</div>
-                <div class="text-caption text-blue-grey-lighten-1" v-if="slot.tipo === 'agendamento'">{{ slot.detalhes }}</div>
+                <div class="text-body-2 font-weight-medium" v-if="slot.tipo === 'agendamento'" style="color: rgba(255, 255, 255, 0.9)">{{ slot.detalhes }}</div>
               </v-card-text>
             </v-card>
           </v-col>
