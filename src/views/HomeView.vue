@@ -66,26 +66,26 @@
         :color="getSlotColor(slot)" 
         @click="handleItemClick(slot)" 
         :disabled="slot.tipo === 'passado'">
-            <v-card-text class="pa-3 text-center">
-              <div class="font-weight-bold mb-1">{{ slot.horarioFormatado }}</div>
-              <v-chip size="small" :color="getChipColor(slot.status)" class="mb-1">
-              <v-icon start size="16">{{ getChipIcon(slot.status) }}</v-icon>
-               {{ slot.titulo }}
-              </v-chip>
-            
-              <div class="text-caption truncate-text" 
-                :class="getTextColorClass(slot)"
-                v-if="slot.tipo === 'agendamento'">
-                {{ slot.detalhes }}
-              </div>
-              <!-- Remover text-green-darken-1 fixo -->
-              <div class="text-caption font-weight-bold" 
-                :class="getPriceColorClass(slot)"
-                 v-if="slot.tipo === 'agendamento' && slot.preco">
-                 {{ (slot.preco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}
-              </div>
-            </v-card-text>
-           </v-card>
+  <v-card-text class="pa-3 text-center">
+    <div class="font-weight-bold mb-1" :class="getTextColorClass(slot)">
+      {{ slot.horarioFormatado }}
+    </div>
+    <v-chip size="small" :color="getChipColor(slot.status)" class="mb-1">
+      <v-icon start size="16">{{ getChipIcon(slot.status) }}</v-icon>
+      {{ slot.titulo }}
+    </v-chip>
+    <div class="text-caption truncate-text" 
+         :class="getTextColorClass(slot)" 
+         v-if="slot.tipo === 'agendamento'">
+      {{ slot.detalhes }}
+    </div>
+    <div class="text-caption font-weight-bold" 
+         :class="getPriceColorClass(slot)"
+         v-if="slot.tipo === 'agendamento' && slot.preco">
+      {{ (slot.preco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}
+    </div>
+  </v-card-text>
+</v-card>
           </v-col>
         </v-row>
       </v-container>
