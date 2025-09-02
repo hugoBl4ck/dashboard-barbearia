@@ -68,7 +68,7 @@
                   <v-icon start size="16">{{ getChipIcon(slot.status) }}</v-icon>
                   {{ slot.titulo }}
                 </v-chip>
-                <div class="text-caption truncate-text" v-if="slot.tipo === 'agendamento'">
+                <div class="text-caption truncate-text text-white" v-if="slot.tipo === 'agendamento'">
                   {{ slot.detalhes }}
                 </div>
                  <div class="text-caption font-weight-bold text-green-darken-1" v-if="slot.tipo === 'agendamento' && slot.preco">
