@@ -290,4 +290,31 @@ const getChipIcon = (status) => {
   if (status === 'livre') return 'mdi-plus-box-outline';
   return 'mdi-check-circle';
 };
+const getTextColorClass = (slot) => {
+  const bgColor = getSlotColor(slot);
+  return isLightColor(bgColor) ? 'text-grey-darken-3' : 'text-white';
+};
+
+const getPriceColorClass = (slot) => {
+  const bgColor = getSlotColor(slot);
+  return isLightColor(bgColor) ? 'text-green-darken-2' : 'text-green-lighten-2';
+};
+
+const isLightColor = (color) => {
+  // Cores claras do Vuetify que precisam de texto escuro
+  const lightColors = [
+    'grey-lighten-2', 'grey-lighten-3', 'grey-lighten-4', 'grey-lighten-5',
+    'blue-lighten-4', 'blue-lighten-5',
+    'green-lighten-4', 'green-lighten-5',
+    'yellow', 'yellow-lighten-1', 'yellow-lighten-2',
+    'orange-lighten-3', 'orange-lighten-4',
+    'pink-lighten-4', 'pink-lighten-5',
+    'purple-lighten-4', 'purple-lighten-5'
+  ];
+  
+  // Se não tem cor definida (undefined), assume fundo claro/branco
+  if (!color) return true;
+  
+  return lightColors.includes(color);
+};
 </script>
