@@ -70,7 +70,7 @@
     <div class="font-weight-bold mb-1" :class="getTextColorClass(slot)">
       {{ slot.horarioFormatado }}
     </div>
-    <v-chip size="small" :color="getChipColor(slot.status)" class="mb-1">
+    <v-chip size="small" :color="getChipColor(slot)" class="mb-1">
       <v-icon start size="16">{{ getChipIcon(slot.status) }}</v-icon>
       {{ slot.titulo }}
     </v-chip>
@@ -275,21 +275,34 @@ watch(servicoSelecionado, (novoServico) => {
     precoServico.value = novoServico.preco || 0;
   }
 });
+
+// Métodos para cores de fundo dos slots
 const getSlotColor = (slot) => {
   if (slot.status === 'agendamento') return 'primary';
   if (slot.status === 'passado') return 'grey-lighten-2';
   return undefined;
 };
-const getChipColor = (status) => {
-  if (status === 'agendamento') return 'primary';
-  if (status === 'livre') return 'success';
+
+// Método CORRIGIDO para cores dos chips - agora recebe o slot completo
+const getChipColor = (slot) => {
+  const bgColor = getSlotColor(slot);
+  
+  if (slot.status === 'agendamento') {
+    // Se o fundo do card é primary (azul), usar uma cor contrastante no chip
+    if (bgColor === 'primary') return 'white';
+    return 'primary';
+  }
+  if (slot.status === 'livre') return 'success';
   return 'grey';
 };
+
 const getChipIcon = (status) => {
   if (status === 'agendamento') return 'mdi-account-check';
   if (status === 'livre') return 'mdi-plus-box-outline';
   return 'mdi-check-circle';
 };
+
+// Métodos para contraste de texto
 const getTextColorClass = (slot) => {
   const bgColor = getSlotColor(slot);
   return isLightColor(bgColor) ? 'text-grey-darken-3' : 'text-white';
