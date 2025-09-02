@@ -1,6 +1,6 @@
 <template>
   <v-container fluid class="pa-6 page-container">
-    <!-- CABEÇALHO COM NAVEGAÇÃO DE DATA -->
+    <!-- NAVEGAÇÃO DE DATA -->
     <v-card flat class="d-flex align-center pa-2 mb-6 date-nav-card" color="surface">
       <v-btn variant="text" icon="mdi-chevron-left" @click="mudarDia(-1)"></v-btn>
       <v-spacer></v-spacer>
@@ -60,12 +60,13 @@
       <div v-else-if="estaFechado" class="text-center pa-16"><v-icon size="64" color="grey">mdi-door-closed-lock</v-icon><p class="mt-4 text-medium-emphasis">Barbearia Fechada</p></div>
       <v-container v-else fluid>
         <v-row dense>
-          <v-col v-for="slot in agendaDoDia" :key="slot.timestamp" cols="6" sm="4" md="3" lg="2">
+          <v-col v-for="slot in agendaDoDia" :key="slot.timestamp" cols="12" sm="6" md="4" lg="3">
             <v-card class="slot-card" :variant="slot.tipo === 'livre' ? 'outlined' : 'flat'" :color="getSlotColor(slot)" @click="handleItemClick(slot)" :disabled="slot.tipo === 'passado'">
               <v-card-text class="text-center">
                 <div class="font-weight-bold">{{ slot.horarioFormatado }}</div>
                 <div class="text-caption truncate-text" v-if="slot.tipo === 'agendamento'">{{ slot.titulo }}</div>
                 <div class="text-caption" v-else>{{ slot.titulo }}</div>
+                <div class="text-caption text-blue-grey-lighten-1" v-if="slot.tipo === 'agendamento'">{{ slot.detalhes }}</div>
               </v-card-text>
             </v-card>
           </v-col>
@@ -93,14 +94,13 @@
 </template>
 
 <style scoped>
-/* ESTILOS VISUAIS E DA FONTE */
 .page-container { font-family: 'Poppins', sans-serif; }
 .date-nav-card { border-radius: 12px; }
 .kpi-card { color: white !important; border-radius: 12px; padding: 24px !important; }
 .kpi-label { text-transform: uppercase; font-size: 0.75rem; opacity: 0.8; }
 .kpi-number { font-size: 2.25rem; font-weight: 700; line-height: 1; }
 .kpi-icon { opacity: 0.5; }
-.slot-card { transition: all 0.2s ease-in-out; cursor: pointer; height: 80px; display: flex; flex-direction: column; justify-content: center; border-radius: 12px; }
+.slot-card { transition: all 0.2s ease-in-out; cursor: pointer; height: 100px; display: flex; flex-direction: column; justify-content: center; border-radius: 12px; }
 .slot-card:hover:not([disabled]) { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
 .truncate-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>
@@ -110,7 +110,6 @@ import { ref, onMounted, computed, watch } from 'vue';
 import { db } from '@/firebase';
 import { collection, query, where, getDocs, orderBy, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
-// --- ESTADO REATIVO ---
 const loading = ref(true);
 const allAppointments = ref([]);
 const dataExibida = ref(new Date());
@@ -125,7 +124,6 @@ const idAgendamentoEditando = ref(null);
 const horarioModal = ref('');
 const timestampModal = ref(null);
 
-// --- PROPRIEDADES COMPUTADAS ---
 const dataFormatada = computed(() => {
     const d = dataExibida.value;
     return {
@@ -153,30 +151,53 @@ const proximoAgendamento = computed(() => {
 });
 const agendaDoDia = computed(() => {
     if (!configHorarios.value) return [];
+    
     const agenda = [];
     const parseTime = str => str ? parseInt(str.split(':')[0]) * 60 + parseInt(str.split(':')[1]) : 0;
     const formatTime = totalMinutes => `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
-    let minutoAtual = parseTime(configHorarios.value.InicioManha);
-    const fimDoDia = parseTime(configHorarios.value.FimTarde || configHorarios.value.FimManha);
-    const agendamentosOrdenados = todayAppointments.value.sort((a, b) => new Date(a.DataHoraISO) - new Date(b.DataHoraISO));
     
-    agendamentosOrdenados.forEach(ag => {
-        const inicioAgendamento = parseTime(new Date(ag.DataHoraISO).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-        if (minutoAtual < inicioAgendamento) {
-            const dataSlot = new Date(dataExibida.value); dataSlot.setHours(Math.floor(minutoAtual/60), minutoAtual%60, 0, 0);
-            agenda.push({ tipo: 'livre', horarioFormatado: formatTime(minutoAtual), titulo: 'Horário Vago', timestamp: dataSlot.getTime() });
-        }
-        agenda.push({ tipo: 'agendamento', ...ag, horarioFormatado: formatTime(inicioAgendamento), titulo: ag.NomeCliente, detalhes: `${ag.servicoNome} - ${ag.duracaoMinutos} min` });
-        minutoAtual = inicioAgendamento + ag.duracaoMinutos;
+    const minutoInicio = parseTime(configHorarios.value.InicioManha);
+    const minutoFim = parseTime(configHorarios.value.FimTarde || configHorarios.value.FimManha);
+    const minutoAlmocoInicio = parseTime(configHorarios.value.FimManha);
+    const minutoAlmocoFim = parseTime(configHorarios.value.InicioTarde);
+    const INTERVALO_MINUTOS = 30;
+
+    const agendamentosMap = new Map();
+    todayAppointments.value.forEach(ag => {
+        const inicio = parseTime(new Date(ag.DataHoraISO).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+        agendamentosMap.set(inicio, ag);
     });
 
-    if (minutoAtual < fimDoDia) {
-        const dataSlotFinal = new Date(dataExibida.value); dataSlotFinal.setHours(Math.floor(minutoAtual/60), minutoAtual%60, 0, 0);
-        agenda.push({ tipo: 'livre', horarioFormatado: formatTime(minutoAtual), titulo: 'Horário Vago', timestamp: dataSlotFinal.getTime() });
+    for (let minuto = minutoInicio; minuto < minutoFim; minuto += INTERVALO_MINUTOS) {
+        if (minutoAlmocoInicio && minutoAlmocoFim && minuto >= minutoAlmocoInicio && minuto < minutoAlmocoFim) {
+            continue;
+        }
+        
+        const dataSlot = new Date(dataExibida.value);
+        dataSlot.setHours(Math.floor(minuto/60), minuto%60, 0, 0);
+        const agendamento = agendamentosMap.get(minuto);
+        const estaNoPassado = dataSlot < new Date() && dataExibida.value.toDateString() === new Date().toDateString();
+        
+        if (agendamento) {
+            agenda.push({
+                tipo: estaNoPassado ? 'passado' : 'agendamento',
+                ...agendamento,
+                horarioFormatado: formatTime(minuto),
+                titulo: agendamento.NomeCliente,
+                detalhes: agendamento.servicoNome,
+                timestamp: dataSlot.getTime()
+            });
+        } else {
+            agenda.push({
+                tipo: estaNoPassado ? 'passado' : 'livre',
+                horarioFormatado: formatTime(minuto),
+                titulo: estaNoPassado ? 'Encerrado' : 'Disponível',
+                timestamp: dataSlot.getTime()
+            });
+        }
     }
     return agenda;
 });
-// --- BUSCA DE DADOS ---
 const fetchData = async () => {
   loading.value = true;
   try {
@@ -201,11 +222,9 @@ const fetchConfigHorarios = async (data) => {
 watch(dataExibida, async (novaData) => {
   loading.value = true;
   await fetchConfigHorarios(novaData);
-  // Não precisa buscar todos os agendamentos de novo, apenas recalcular os computados
   loading.value = false;
 });
 onMounted(() => { fetchData(); });
-// ---- NAVEGAÇÃO E CRUD ----
 const mudarDia = (dias) => { const novaData = new Date(dataExibida.value); novaData.setDate(novaData.getDate() + dias); dataExibida.value = novaData; };
 const irParaHoje = () => { dataExibida.value = new Date(); };
 const fecharModal = () => {
@@ -250,7 +269,6 @@ const excluirAgendamento = async () => {
     try { await deleteDoc(doc(db, 'Agendamentos', idAgendamentoEditando.value)); }
     finally { fecharModal(); fetchData(); }
 };
-// --- FUNÇÕES AUXILIARES ---
 const getSlotColor = (slot) => {
   if (slot.tipo === 'agendamento') return 'primary';
   if (slot.tipo === 'passado') return 'grey-lighten-2';
