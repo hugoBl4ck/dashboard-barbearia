@@ -62,11 +62,18 @@
         <v-row dense>
           <v-col v-for="slot in agendaDoDia" :key="slot.timestamp" cols="12" sm="6" md="4" lg="3">
             <v-card class="slot-card" :variant="slot.tipo === 'livre' ? 'outlined' : 'flat'" :color="getSlotColor(slot)" @click="handleItemClick(slot)" :disabled="slot.tipo === 'passado'">
-              <v-card-text class="text-center">
-                <div class="font-weight-bold">{{ slot.horarioFormatado }}</div>
-                <div class="text-subtitle-2 truncate-text" v-if="slot.tipo === 'agendamento'">{{ slot.titulo }}</div>
-                <div class="text-caption" v-else>{{ slot.titulo }}</div>
-                <div class="text-body-2 font-weight-medium" v-if="slot.tipo === 'agendamento'" style="color: rgba(255, 255, 255, 0.9)">{{ slot.detalhes }}</div>
+              <v-card-text class="pa-3 text-center">
+                <div class="font-weight-bold mb-1">{{ slot.horarioFormatado }}</div>
+                <v-chip size="small" :color="getChipColor(slot.status)" class="mb-1">
+                  <v-icon start size="16">{{ getChipIcon(slot.status) }}</v-icon>
+                  {{ slot.titulo }}
+                </v-chip>
+                <div class="text-caption truncate-text" v-if="slot.tipo === 'agendamento'">
+                  {{ slot.detalhes }}
+                </div>
+                 <div class="text-caption font-weight-bold text-green-darken-1" v-if="slot.tipo === 'agendamento' && slot.preco">
+                  {{ (slot.preco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}
+                </div>
               </v-card-text>
             </v-card>
           </v-col>
@@ -82,6 +89,7 @@
           <v-select v-model="servicoSelecionado" :items="listaServicos" item-title="nome" item-value="id" label="Serviço" variant="outlined" density="compact" return-object :disabled="editando"></v-select>
           <v-text-field v-model="nomeCliente" label="Nome do Cliente" variant="outlined" density="compact" class="mt-4"></v-text-field>
           <v-text-field v-model="telefoneCliente" label="Telefone" variant="outlined" density="compact"></v-text-field>
+          <v-text-field v-model.number="precoServico" label="Valor Final (R$)" variant="outlined" density="compact" type="number" prefix="R$"></v-text-field>
         </v-card-text>
         <v-card-actions class="justify-end">
           <v-btn text @click="fecharModal">Cancelar</v-btn>
@@ -100,9 +108,9 @@
 .kpi-label { text-transform: uppercase; font-size: 0.75rem; opacity: 0.8; }
 .kpi-number { font-size: 2.25rem; font-weight: 700; line-height: 1; }
 .kpi-icon { opacity: 0.5; }
-.slot-card { transition: all 0.2s ease-in-out; cursor: pointer; height: 100px; display: flex; flex-direction: column; justify-content: center; border-radius: 12px; }
+.slot-card { transition: all 0.2s ease-in-out; cursor: pointer; height: 110px; display: flex; flex-direction: column; justify-content: center; border-radius: 12px; }
 .slot-card:hover:not([disabled]) { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
-.truncate-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.truncate-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 </style>
 
 <script setup>
@@ -119,6 +127,7 @@ const modalAberto = ref(false);
 const nomeCliente = ref('');
 const telefoneCliente = ref('');
 const servicoSelecionado = ref(null);
+const precoServico = ref(0);
 const editando = ref(false);
 const idAgendamentoEditando = ref(null);
 const horarioModal = ref('');
@@ -151,50 +160,35 @@ const proximoAgendamento = computed(() => {
 });
 const agendaDoDia = computed(() => {
     if (!configHorarios.value) return [];
-    
     const agenda = [];
     const parseTime = str => str ? parseInt(str.split(':')[0]) * 60 + parseInt(str.split(':')[1]) : 0;
     const formatTime = totalMinutes => `${String(Math.floor(totalMinutes / 60)).padStart(2, '0')}:${String(totalMinutes % 60).padStart(2, '0')}`;
-    
     const minutoInicio = parseTime(configHorarios.value.InicioManha);
     const minutoFim = parseTime(configHorarios.value.FimTarde || configHorarios.value.FimManha);
     const minutoAlmocoInicio = parseTime(configHorarios.value.FimManha);
     const minutoAlmocoFim = parseTime(configHorarios.value.InicioTarde);
     const INTERVALO_MINUTOS = 30;
-
     const agendamentosMap = new Map();
     todayAppointments.value.forEach(ag => {
         const inicio = parseTime(new Date(ag.DataHoraISO).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
         agendamentosMap.set(inicio, ag);
     });
-
     for (let minuto = minutoInicio; minuto < minutoFim; minuto += INTERVALO_MINUTOS) {
-        if (minutoAlmocoInicio && minutoAlmocoFim && minuto >= minutoAlmocoInicio && minuto < minutoAlmocoFim) {
-            continue;
-        }
-        
+        if (minutoAlmocoInicio && minutoAlmocoFim && minuto >= minutoAlmocoInicio && minuto < minutoAlmocoFim) continue;
         const dataSlot = new Date(dataExibida.value);
         dataSlot.setHours(Math.floor(minuto/60), minuto%60, 0, 0);
         const agendamento = agendamentosMap.get(minuto);
         const estaNoPassado = dataSlot < new Date() && dataExibida.value.toDateString() === new Date().toDateString();
-        
-        if (agendamento) {
-            agenda.push({
-                tipo: estaNoPassado ? 'passado' : 'agendamento',
-                ...agendamento,
-                horarioFormatado: formatTime(minuto),
-                titulo: agendamento.NomeCliente,
-                detalhes: agendamento.servicoNome,
-                timestamp: dataSlot.getTime()
-            });
-        } else {
-            agenda.push({
-                tipo: estaNoPassado ? 'passado' : 'livre',
-                horarioFormatado: formatTime(minuto),
-                titulo: estaNoPassado ? 'Encerrado' : 'Disponível',
-                timestamp: dataSlot.getTime()
-            });
-        }
+        const status = agendamento ? (estaNoPassado ? 'passado' : 'agendamento') : (estaNoPassado ? 'passado' : 'livre');
+        agenda.push({
+            tipo: status === 'agendamento' ? 'agendamento' : (status === 'livre' ? 'livre' : 'passado'),
+            status: status, // Adiciona o status para uso nos estilos
+            ...(agendamento && { ...agendamento }),
+            horarioFormatado: formatTime(minuto),
+            titulo: agendamento ? agendamento.NomeCliente : (estaNoPassado ? 'Encerrado' : 'Disponível'),
+            detalhes: agendamento ? agendamento.servicoNome : '',
+            timestamp: dataSlot.getTime()
+        });
     }
     return agenda;
 });
@@ -203,10 +197,7 @@ const fetchData = async () => {
   try {
     const agendamentosQuery = query(collection(db, "Agendamentos"));
     const servicosQuery = query(collection(db, "Servicos"), where("ativo", "==", true));
-    const [agendamentosSnapshot, servicosSnapshot] = await Promise.all([
-      getDocs(agendamentosQuery),
-      getDocs(servicosQuery)
-    ]);
+    const [agendamentosSnapshot, servicosSnapshot] = await Promise.all([ getDocs(agendamentosQuery), getDocs(servicosQuery) ]);
     allAppointments.value = agendamentosSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     listaServicos.value = servicosSnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
     await fetchConfigHorarios(dataExibida.value);
@@ -228,8 +219,7 @@ onMounted(() => { fetchData(); });
 const mudarDia = (dias) => { const novaData = new Date(dataExibida.value); novaData.setDate(novaData.getDate() + dias); dataExibida.value = novaData; };
 const irParaHoje = () => { dataExibida.value = new Date(); };
 const fecharModal = () => {
-    modalAberto.value = false;
-    editando.value = false; idAgendamentoEditando.value = null; nomeCliente.value = ''; telefoneCliente.value = ''; servicoSelecionado.value = null; horarioModal.value = ''; timestampModal.value = null;
+    modalAberto.value = false; editando.value = false; idAgendamentoEditando.value = null; nomeCliente.value = ''; telefoneCliente.value = ''; servicoSelecionado.value = null; horarioModal.value = ''; timestampModal.value = null; precoServico.value = 0;
 };
 const handleItemClick = (item) => {
     if (item.tipo === 'passado') return;
@@ -238,8 +228,9 @@ const handleItemClick = (item) => {
     if (item.tipo === 'agendamento') {
         editando.value = true; idAgendamentoEditando.value = item.id; nomeCliente.value = item.NomeCliente; telefoneCliente.value = item.TelefoneCliente;
         servicoSelecionado.value = listaServicos.value.find(s => s.id === item.servicoId) || null;
+        precoServico.value = item.preco || servicoSelecionado.value?.preco || 0;
     } else {
-        editando.value = false; idAgendamentoEditando.value = null; nomeCliente.value = ''; telefoneCliente.value = ''; servicoSelecionado.value = null;
+        editando.value = false; idAgendamentoEditando.value = null; nomeCliente.value = ''; telefoneCliente.value = ''; servicoSelecionado.value = null; precoServico.value = 0;
     }
     modalAberto.value = true;
 };
@@ -251,14 +242,14 @@ const salvarAgendamento = async () => {
     if (!nomeCliente.value || !servicoSelecionado.value) return alert('Nome e serviço são obrigatórios.');
     try {
         if (editando.value && idAgendamentoEditando.value) {
-            await updateDoc(doc(db, 'Agendamentos', idAgendamentoEditando.value), { NomeCliente: nomeCliente.value, TelefoneCliente: telefoneCliente.value });
+            await updateDoc(doc(db, 'Agendamentos', idAgendamentoEditando.value), { NomeCliente: nomeCliente.value, TelefoneCliente: telefoneCliente.value, preco: precoServico.value });
         } else {
             const dataDoAgendamento = new Date(timestampModal.value);
             await addDoc(collection(db, 'Agendamentos'), {
                 NomeCliente: nomeCliente.value, TelefoneCliente: telefoneCliente.value, DataHoraISO: dataDoAgendamento.toISOString(),
                 DataHoraFormatada: new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(dataDoAgendamento),
                 Status: 'Agendado', TimestampAgendamento: new Date().toISOString(),
-                servicoId: servicoSelecionado.value.id, servicoNome: servicoSelecionado.value.nome, preco: servicoSelecionado.value.preco, duracaoMinutos: servicoSelecionado.value.duracaoMinutos,
+                servicoId: servicoSelecionado.value.id, servicoNome: servicoSelecionado.value.nome, preco: precoServico.value, duracaoMinutos: servicoSelecionado.value.duracaoMinutos,
             });
         }
     } catch (error) { console.error("Erro ao salvar:", error); alert("Ocorreu um erro ao salvar."); }
@@ -269,9 +260,24 @@ const excluirAgendamento = async () => {
     try { await deleteDoc(doc(db, 'Agendamentos', idAgendamentoEditando.value)); }
     finally { fecharModal(); fetchData(); }
 };
+watch(servicoSelecionado, (novoServico) => {
+  if (!editando.value && novoServico) {
+    precoServico.value = novoServico.preco || 0;
+  }
+});
 const getSlotColor = (slot) => {
-  if (slot.tipo === 'agendamento') return 'primary';
-  if (slot.tipo === 'passado') return 'grey-lighten-2';
+  if (slot.status === 'agendamento') return 'primary';
+  if (slot.status === 'passado') return 'grey-lighten-2';
   return undefined;
+};
+const getChipColor = (status) => {
+  if (status === 'agendamento') return 'primary';
+  if (status === 'livre') return 'success';
+  return 'grey';
+};
+const getChipIcon = (status) => {
+  if (status === 'agendamento') return 'mdi-account-check';
+  if (status === 'livre') return 'mdi-plus-box-outline';
+  return 'mdi-check-circle';
 };
 </script>
