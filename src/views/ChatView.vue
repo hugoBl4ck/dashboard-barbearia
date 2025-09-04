@@ -4,18 +4,19 @@
 
 <script setup>
 import { onMounted } from 'vue';
-import typebot from '@typebot.io/js'; // ✅ Default export
-const standard = typebot.standard; // Acessa a propriedade "standard" do default
+// Importa a biblioteca inteira como um objeto 'Typebot'
+import * as Typebot from '@typebot.io/js';
+
 // Função para extrair o ID do Typebot da URL de compartilhamento
 const get_typebot_id_from_url = (url) => {
-  // Usa uma regex mais robusta para pegar o ID no final da URL
+  if (!url || typeof url !== 'string') return null;
   const match = url.match(/([a-zA-Z0-9]+)$/);
   return match ? match[1] : null;
 };
 
 onMounted(() => {
-  // INSTRUÇÃO IMPORTANTE: Cole a URL de compartilhamento aqui
-  const typebot_share_url = "https://typebot.co/my-typebot-lk5rehg";
+  // INSTRUÇÃO: Cole a URL de compartilhamento do seu Typebot aqui
+  const typebot_share_url = "COLE_A_URL_DO_SEU_TYPEBOT_AQUI";
   
   const typebot_id = get_typebot_id_from_url(typebot_share_url);
 
@@ -24,14 +25,13 @@ onMounted(() => {
     Typebot.initStandard({
       typebot: typebot_id,
       apiHost: "https://viewer.typebot.io",
-      // Adiciona o elemento alvo para garantir que o bot renderize no lugar certo
       element: "#typebot-container"
     });
   } else {
-    console.error("URL do Typebot inválida! Não foi possível extrair o ID. Verifique a variável 'typebot_share_url'.");
+    console.error("URL do Typebot inválida ou não fornecida. Verifique a variável 'typebot_share_url'.");
     const container = document.getElementById('typebot-container');
     if (container) {
-      container.innerHTML = '<h1>Erro: Bot não configurado. Verifique a URL no código.</h1>';
+      container.innerHTML = '<h1>Erro: Bot não configurado. Verifique a URL no código-fonte.</h1>';
     }
   }
 });
