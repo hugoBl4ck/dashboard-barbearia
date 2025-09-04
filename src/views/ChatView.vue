@@ -4,9 +4,8 @@
 
 <script setup>
 import { onMounted } from 'vue';
-// Importa a biblioteca inteira em vez de uma parte específica
-import * as Typebot from '@typebot.io/js';
-
+import typebot from '@typebot.io/js'; // ✅ Default export
+const standard = typebot.standard; // Acessa a propriedade "standard" do default
 // Função para extrair o ID do Typebot da URL de compartilhamento
 const get_typebot_id_from_url = (url) => {
   // Usa uma regex mais robusta para pegar o ID no final da URL
