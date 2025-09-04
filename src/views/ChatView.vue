@@ -16,7 +16,7 @@ const get_typebot_id_from_url = (url) => {
 
 onMounted(() => {
   // INSTRUÇÃO: Cole a URL de compartilhamento do seu Typebot aqui
-  const typebot_share_url = "COLE_A_URL_DO_SEU_TYPEBOT_AQUI";
+  const typebot_share_url = "https://typebot.co/my-typebot-lk5rehg";
   
   const typebot_id = get_typebot_id_from_url(typebot_share_url);
 
