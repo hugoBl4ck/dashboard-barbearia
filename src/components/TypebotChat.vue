@@ -1,21 +1,25 @@
 <!-- src/components/TypebotChat.vue -->
 <template>
-  <div class="typebot-chat-wrapper">
-    <!-- Container para o typebot embeddado -->
-    <div ref="typebotContainer" class="typebot-container" v-if="!showFloatingButton"></div>
+  <div class="typebot-wrapper">
+    <!-- Container para chat embeddado -->
+    <div 
+      v-if="!showFloatingButton" 
+      ref="typebotContainer" 
+      class="typebot-container"
+    ></div>
     
     <!-- Botão flutuante -->
     <button 
-      v-if="showFloatingButton"
-      @click="openTypebot"
+      v-if="showFloatingButton && !isTypebotOpen"
+      @click="handleButtonClick"
       class="typebot-floating-button"
-      :class="{ 'pulse': shouldPulse }"
+      :class="{ 'animate-pulse': shouldPulse }"
     >
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM20 16H5.17L4 17.17V4H20V16Z" fill="currentColor"/>
-        <circle cx="7" cy="10" r="1" fill="currentColor"/>
-        <circle cx="12" cy="10" r="1" fill="currentColor"/>
-        <circle cx="17" cy="10" r="1" fill="currentColor"/>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M20 2H4C2.9 2 2 2.9 2 4V22L6 18H20C21.1 18 22 17.1 22 16V4C22 2.9 21.1 2 20 2ZM20 16H5.17L4 17.17V4H20V16Z"/>
+        <circle cx="7" cy="10" r="1"/>
+        <circle cx="12" cy="10" r="1"/>
+        <circle cx="17" cy="10" r="1"/>
       </svg>
       <span class="button-text">{{ buttonText }}</span>
     </button>
@@ -38,16 +42,13 @@ const props = defineProps({
     type: Boolean,
     default: true
   },
-  theme: {
-    type: Object,
-    default: () => ({
-      button: { backgroundColor: '#1976d2' },
-      chatWindow: { backgroundColor: '#ffffff' }
-    })
-  },
   buttonText: {
     type: String,
     default: 'Chat'
+  },
+  theme: {
+    type: Object,
+    default: () => ({})
   }
 })
 
@@ -55,37 +56,59 @@ const emit = defineEmits(['onOpen', 'onClose'])
 
 const typebotContainer = ref(null)
 const shouldPulse = ref(false)
+const isTypebotOpen = ref(false)
+const scriptLoaded = ref(false)
 let typebot = null
-let isInitialized = ref(false)
 
+// Função para carregar script do Typebot
 const loadTypebotScript = () => {
   return new Promise((resolve, reject) => {
-    // Verificar se já está carregado
-    if (window.Typebot) {
-      console.log('Typebot já carregado')
+    // Se já carregou, resolve imediatamente
+    if (scriptLoaded.value && window.Typebot) {
+      console.log('✅ Typebot script já carregado')
       resolve(window.Typebot)
       return
     }
 
-    console.log('Carregando script do Typebot...')
+    // Verificar se já existe um script carregando
+    const existingScript = document.querySelector('script[src*="typebot.io"]')
+    if (existingScript) {
+      console.log('⏳ Script já está sendo carregado...')
+      existingScript.onload = () => {
+        scriptLoaded.value = true
+        resolve(window.Typebot)
+      }
+      existingScript.onerror = reject
+      return
+    }
+
+    console.log('🔄 Carregando script do Typebot...')
     const script = document.createElement('script')
-    script.src = 'https://cdn.jsdelivr.net/npm/@typebot.io/js@0.8/dist/web.js'
+    
+    // Usar versão específica e estável
+    script.src = 'https://cdn.jsdelivr.net/npm/@typebot.io/js@0.8.20/dist/web.js'
+    script.type = 'text/javascript'
     script.async = true
+    script.defer = true
     
     script.onload = () => {
-      console.log('Script do Typebot carregado com sucesso')
-      // Aguardar um pouco para garantir que está disponível
+      console.log('✅ Script carregado com sucesso')
+      scriptLoaded.value = true
+      
+      // Aguardar um momento para o objeto ficar disponível
       setTimeout(() => {
         if (window.Typebot) {
+          console.log('✅ Typebot disponível:', typeof window.Typebot)
           resolve(window.Typebot)
         } else {
-          reject(new Error('Typebot não disponível após carregamento'))
+          console.error('❌ Typebot não disponível no window')
+          reject(new Error('Typebot não disponível'))
         }
-      }, 100)
+      }, 500)
     }
     
     script.onerror = (error) => {
-      console.error('Erro ao carregar script do Typebot:', error)
+      console.error('❌ Erro ao carregar script:', error)
       reject(error)
     }
     
@@ -93,119 +116,130 @@ const loadTypebotScript = () => {
   })
 }
 
+// Função para inicializar o Typebot
 const initTypebot = async () => {
-  if (isInitialized.value) {
-    console.log('Typebot já inicializado')
-    return
-  }
-
   try {
-    console.log('Inicializando Typebot com ID:', props.typebotId)
+    console.log('🚀 Iniciando Typebot com ID:', props.typebotId)
+    
     const Typebot = await loadTypebotScript()
-    
-    await nextTick() // Aguardar DOM estar pronto
-    
+    await nextTick()
+
     const config = {
       typebot: props.typebotId,
-      theme: props.theme,
-      onOpen: () => {
-        console.log('Chat aberto')
-        emit('onOpen')
-      },
-      onClose: () => {
-        console.log('Chat fechado') 
-        emit('onClose')
-      }
+      theme: props.theme
     }
 
-    console.log('Configuração do Typebot:', config)
+    console.log('⚙️ Configuração:', config)
 
     if (props.showFloatingButton) {
-      console.log('Inicializando modo bubble')
+      console.log('🎈 Modo bubble')
       typebot = Typebot.initBubble(config)
     } else if (typebotContainer.value) {
-      console.log('Inicializando modo standard no container')
+      console.log('📦 Modo standard')
       typebot = Typebot.initStandard({
         ...config,
         container: typebotContainer.value
       })
-    } else {
-      console.error('Container não encontrado para modo standard')
-      return
     }
 
-    isInitialized.value = true
-    console.log('Typebot inicializado com sucesso')
+    console.log('✅ Typebot inicializado:', typebot)
 
-    // Auto-open se configurado
+    // Auto-open para modo embeddado
     if (props.autoOpen && !props.showFloatingButton) {
-      setTimeout(() => openTypebot(), 1000)
+      setTimeout(() => {
+        openTypebot()
+      }, 1000)
     }
 
-    // Pulsar botão após um tempo
+    // Animar botão depois de um tempo
     if (props.showFloatingButton) {
       setTimeout(() => {
         shouldPulse.value = true
         setTimeout(() => {
           shouldPulse.value = false
         }, 3000)
-      }, 5000)
+      }, 4000)
     }
 
   } catch (error) {
-    console.error('Erro ao inicializar Typebot:', error)
-    
-    // Fallback: tentar novamente após 2 segundos
-    setTimeout(() => {
-      console.log('Tentando inicializar novamente...')
-      isInitialized.value = false
-      initTypebot()
-    }, 2000)
+    console.error('❌ Erro na inicialização:', error)
   }
 }
 
+// Função para abrir o chat
 const openTypebot = () => {
-  console.log('Tentando abrir typebot...', typebot)
-  if (typebot && typeof typebot.open === 'function') {
-    typebot.open()
-  } else if (!isInitialized.value) {
-    console.log('Typebot não inicializado, inicializando...')
-    initTypebot()
-  } else {
-    console.warn('Typebot não disponível para abertura')
+  try {
+    if (typebot && typeof typebot.open === 'function') {
+      console.log('🎯 Abrindo Typebot')
+      typebot.open()
+      isTypebotOpen.value = true
+      emit('onOpen')
+    } else {
+      console.log('⚠️ Typebot não pronto, tentando inicializar...')
+      initTypebot().then(() => {
+        if (typebot && typeof typebot.open === 'function') {
+          typebot.open()
+          isTypebotOpen.value = true
+          emit('onOpen')
+        }
+      })
+    }
+  } catch (error) {
+    console.error('❌ Erro ao abrir Typebot:', error)
   }
 }
 
+// Função para fechar o chat
 const closeTypebot = () => {
-  if (typebot && typeof typebot.close === 'function') {
-    typebot.close()
+  try {
+    if (typebot && typeof typebot.close === 'function') {
+      console.log('🔒 Fechando Typebot')
+      typebot.close()
+      isTypebotOpen.value = false
+      emit('onClose')
+    }
+  } catch (error) {
+    console.error('❌ Erro ao fechar Typebot:', error)
   }
 }
 
-// Lifecycle
+// Handler do botão
+const handleButtonClick = () => {
+  console.log('👆 Botão clicado')
+  openTypebot()
+}
+
+// Lifecycle hooks
 onMounted(async () => {
-  console.log('TypebotChat montado')
+  console.log('🎬 TypebotChat montado')
   await nextTick()
-  initTypebot()
+  
+  // Aguardar um pouco antes de inicializar
+  setTimeout(() => {
+    initTypebot()
+  }, 100)
 })
 
 onUnmounted(() => {
-  console.log('TypebotChat desmontado')
+  console.log('🔚 TypebotChat desmontado')
   if (typebot && typeof typebot.destroy === 'function') {
-    typebot.destroy()
+    try {
+      typebot.destroy()
+    } catch (error) {
+      console.error('Erro ao destruir Typebot:', error)
+    }
   }
 })
 
-// Expor métodos
+// Expor funções
 defineExpose({
   openTypebot,
-  closeTypebot,
-  isInitialized
+  closeTypebot
 })
 </script>
 
 <style scoped>
-.typebot-chat-wrapper {
+.typebot-wrapper {
   width: 100%;
   height: 100%;
 }
@@ -215,7 +249,8 @@ defineExpose({
   height: 100%;
   min-height: 400px;
   border-radius: 8px;
-  overflow: hidden;
+  background-color: #f9f9f9;
+  border: 1px solid #e0e0e0;
 }
 
 .typebot-floating-button {
@@ -235,44 +270,42 @@ defineExpose({
   flex-direction: column;
   font-size: 11px;
   font-weight: 600;
-  box-shadow: 0 8px 24px rgba(25, 118, 210, 0.3);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 16px rgba(25, 118, 210, 0.3);
+  transition: all 0.3s ease;
   z-index: 1000;
   user-select: none;
 }
 
 .typebot-floating-button:hover {
-  transform: scale(1.1);
-  box-shadow: 0 12px 32px rgba(25, 118, 210, 0.4);
+  transform: scale(1.05);
+  box-shadow: 0 6px 20px rgba(25, 118, 210, 0.4);
 }
 
 .typebot-floating-button:active {
   transform: scale(0.95);
 }
 
-.typebot-floating-button.pulse {
+.typebot-floating-button.animate-pulse {
   animation: pulse 2s infinite;
 }
 
 .button-text {
-  margin-top: 2px;
+  margin-top: 4px;
   font-size: 10px;
   opacity: 0.9;
+  text-align: center;
 }
 
 @keyframes pulse {
-  0% {
-    box-shadow: 0 8px 24px rgba(25, 118, 210, 0.3);
+  0%, 100% {
+    box-shadow: 0 4px 16px rgba(25, 118, 210, 0.3);
   }
   50% {
-    box-shadow: 0 8px 24px rgba(25, 118, 210, 0.6), 0 0 0 8px rgba(25, 118, 210, 0.2);
-  }
-  100% {
-    box-shadow: 0 8px 24px rgba(25, 118, 210, 0.3);
+    box-shadow: 0 4px 16px rgba(25, 118, 210, 0.6), 0 0 0 8px rgba(25, 118, 210, 0.2);
   }
 }
 
-/* Mobile */
+/* Responsivo */
 @media (max-width: 768px) {
   .typebot-floating-button {
     bottom: 20px;
