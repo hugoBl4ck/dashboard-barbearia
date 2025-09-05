@@ -1,6 +1,6 @@
 <template>
   <TypebotChat 
-    typebot-id="my-typebot-lk5rehg"
+    typebot-id="cmeybnpf40006jm04plk5rehg"
     :auto-open="true"
   />
 </template>

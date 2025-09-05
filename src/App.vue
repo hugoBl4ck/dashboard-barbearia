@@ -48,10 +48,12 @@
     <v-main style="min-height: 100vh;" class="bg-surface-variant">
       <router-view />
     </v-main>
+    <TypebotChat :typebot-id="'cmeybnpf40006jm04plk5rehg'" />
   </v-app>
 </template>
 
 <script setup>
+import TypebotChat from '@/components/TypebotChat.vue';
 import { ref } from 'vue';
 // Controla a visibilidade da navegação lateral
 const drawer = ref(true); 
