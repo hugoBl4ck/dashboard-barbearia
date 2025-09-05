@@ -350,7 +350,7 @@ const showNotification = ref(false);
 const notificationMessage = ref('');
 
 // ✅ CONFIGURAÇÃO DO TYPEBOT - VERIFIQUE SEU ID!
-const typebotId = 'my-typebot-lk5rehg'; // Confirme se este ID está correto
+const typebotId = 'cmeybnpf40006jm04plk5rehg'; // Confirme se este ID está correto
 
 const chatTheme = { 
   button: { backgroundColor: '#1976d2' }, 
