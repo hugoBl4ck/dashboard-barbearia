@@ -67,11 +67,12 @@
                   <v-card-text class="pa-3 text-center">
                     <div class="font-weight-bold mb-1" :class="getTextColorClass(slot)">{{ slot.horarioFormatado }}</div>
                     <v-chip size="small" :color="getChipColor(slot.status)" class="mb-1">
-                      <v-icon start size="16">{{ getChipIcon(slot.status) }}</v-icon>
+                      <v-icon start size="16">{{ getChipIcon(slot.status) }}</v-icon>1
                       {{ slot.titulo }}
                     </v-chip>
-                    <div class="text-caption truncate-text" :class="getTextColorClass(slot)" v-if="slot.tipo === 'agendamento'">{{ slot.detalhes }}</div>
+                    <div class="text-caption truncate-text text-white" :class="getTextColorClass(slot)" v-if="slot.tipo === 'agendamento'">{{ slot.detalhes }}</div>
                     <div class="text-caption font-weight-bold" :class="getPriceColorClass(slot)" v-if="slot.tipo === 'agendamento' && slot.preco">{{ (slot.preco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}</div>
+                    <div class="text-caption font-weight-bold text-green-lighten-2 mt-1" v-if="slot.tipo === 'agendamento' && slot.preco"> {{ (slot.preco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}</div>
                   </v-card-text>
                 </v-card>
               </v-col>
