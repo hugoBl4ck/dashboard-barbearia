@@ -52,9 +52,6 @@
       <v-card-title class="d-flex align-center">
         <v-icon class="mr-2">mdi-clock-outline</v-icon>Agenda do Dia
         <v-spacer></v-spacer>
-        <v-btn v-if="$vuetify.display.mdAndUp" :color="showChatPanel ? 'secondary' : 'info'" variant="outlined" @click="toggleChatPanel" prepend-icon="mdi-chat" class="mr-2">
-          {{ showChatPanel ? 'Fechar Chat' : 'Chat Virtual' }}
-        </v-btn>
         <v-btn color="primary" @click="abrirModalParaNovoVazio" prepend-icon="mdi-plus">Novo Agendamento</v-btn>
       </v-card-title>
       <v-divider></v-divider>
