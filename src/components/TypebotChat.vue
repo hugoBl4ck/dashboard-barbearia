@@ -27,7 +27,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
 
 const props = defineProps({
   typebotId: {
@@ -58,116 +58,164 @@ const typebotContainer = ref(null)
 const shouldPulse = ref(false)
 const isTypebotOpen = ref(false)
 const scriptLoaded = ref(false)
+const isInitializing = ref(false)
+const isMounted = ref(false)
 let typebot = null
+let scriptPromise = null
 
 // Função para carregar script do Typebot
 const loadTypebotScript = () => {
-  return new Promise((resolve, reject) => {
-    // Se já carregou, resolve imediatamente
-    if (scriptLoaded.value && window.Typebot) {
-      console.log('✅ Typebot script já carregado')
+  // Se já existe uma promise, retorna ela
+  if (scriptPromise) {
+    return scriptPromise
+  }
+
+  // Se já carregou, resolve imediatamente
+  if (scriptLoaded.value && window.Typebot) {
+    console.log('✅ Typebot script já carregado')
+    return Promise.resolve(window.Typebot)
+  }
+
+  // Criar nova promise
+  scriptPromise = new Promise((resolve, reject) => {
+    // Verificar se já existe um script carregando
+    const existingScript = document.querySelector('script[src*="typebot"]')
+    if (existingScript && !window.Typebot) {
+      console.log('⏳ Script já existe, aguardando...')
+      
+      const checkTypebot = () => {
+        if (window.Typebot) {
+          scriptLoaded.value = true
+          resolve(window.Typebot)
+        } else {
+          setTimeout(checkTypebot, 100)
+        }
+      }
+      checkTypebot()
+      return
+    }
+
+    if (existingScript && window.Typebot) {
+      scriptLoaded.value = true
       resolve(window.Typebot)
       return
     }
 
-    // Verificar se já existe um script carregando
-    const existingScript = document.querySelector('script[src*="typebot.io"]')
-    if (existingScript) {
-      console.log('⏳ Script já está sendo carregado...')
-      existingScript.onload = () => {
-        scriptLoaded.value = true
-        resolve(window.Typebot)
-      }
-      existingScript.onerror = reject
-      return
-    }
-
-    console.log('🔄 Carregando script do Typebot...')
+    console.log('📄 Carregando script do Typebot...')
     const script = document.createElement('script')
     
-    // Usar versão específica e estável
-    script.src = 'https://cdn.jsdelivr.net/npm/@typebot.io/js@0.8.20/dist/web.js'
-    script.type = 'text/javascript'
+    // URL corrigida e mais estável
+    script.src = 'https://cdn.typebot.io/js/typebot@v0.3/dist/web.js'
+    script.type = 'module'
     script.async = true
-    script.defer = true
     
     script.onload = () => {
-      console.log('✅ Script carregado com sucesso')
-      scriptLoaded.value = true
+      console.log('✅ Script carregado')
       
-      // Aguardar um momento para o objeto ficar disponível
-      setTimeout(() => {
+      // Aguardar o objeto ficar disponível
+      const waitForTypebot = () => {
         if (window.Typebot) {
-          console.log('✅ Typebot disponível:', typeof window.Typebot)
+          console.log('✅ Typebot disponível')
+          scriptLoaded.value = true
           resolve(window.Typebot)
+        } else if (window.Typebot === undefined) {
+          console.log('⏳ Aguardando Typebot...')
+          setTimeout(waitForTypebot, 100)
         } else {
-          console.error('❌ Typebot não disponível no window')
           reject(new Error('Typebot não disponível'))
         }
-      }, 500)
+      }
+      
+      setTimeout(waitForTypebot, 100)
     }
     
     script.onerror = (error) => {
       console.error('❌ Erro ao carregar script:', error)
+      scriptPromise = null
       reject(error)
     }
     
     document.head.appendChild(script)
   })
+
+  return scriptPromise
 }
 
 // Função para inicializar o Typebot
 const initTypebot = async () => {
+  if (!isMounted.value || isInitializing.value) {
+    console.log('⚠️ Componente não montado ou já inicializando')
+    return
+  }
+
   try {
+    isInitializing.value = true
     console.log('🚀 Iniciando Typebot com ID:', props.typebotId)
     
     const Typebot = await loadTypebotScript()
+    
+    // Verificar se ainda está montado
+    if (!isMounted.value) {
+      console.log('⚠️ Componente foi desmontado durante inicialização')
+      return
+    }
+
     await nextTick()
 
     const config = {
       typebot: props.typebotId,
-      theme: props.theme
+      ...props.theme
     }
 
     console.log('⚙️ Configuração:', config)
 
     if (props.showFloatingButton) {
-      console.log('🎈 Modo bubble')
+      console.log('🎈 Inicializando modo bubble')
       typebot = Typebot.initBubble(config)
     } else if (typebotContainer.value) {
-      console.log('📦 Modo standard')
+      console.log('📦 Inicializando modo standard')
       typebot = Typebot.initStandard({
         ...config,
         container: typebotContainer.value
       })
     }
 
-    console.log('✅ Typebot inicializado:', typebot)
+    console.log('✅ Typebot inicializado')
 
     // Auto-open para modo embeddado
-    if (props.autoOpen && !props.showFloatingButton) {
+    if (props.autoOpen && !props.showFloatingButton && isMounted.value) {
       setTimeout(() => {
-        openTypebot()
-      }, 1000)
+        if (isMounted.value) {
+          openTypebot()
+        }
+      }, 500)
     }
 
     // Animar botão depois de um tempo
-    if (props.showFloatingButton) {
+    if (props.showFloatingButton && isMounted.value) {
       setTimeout(() => {
-        shouldPulse.value = true
-        setTimeout(() => {
-          shouldPulse.value = false
-        }, 3000)
-      }, 4000)
+        if (isMounted.value) {
+          shouldPulse.value = true
+          setTimeout(() => {
+            if (isMounted.value) {
+              shouldPulse.value = false
+            }
+          }, 3000)
+        }
+      }, 2000)
     }
 
   } catch (error) {
     console.error('❌ Erro na inicialização:', error)
+  } finally {
+    isInitializing.value = false
   }
 }
 
 // Função para abrir o chat
 const openTypebot = () => {
+  if (!isMounted.value) return
+
   try {
     if (typebot && typeof typebot.open === 'function') {
       console.log('🎯 Abrindo Typebot')
@@ -177,7 +225,7 @@ const openTypebot = () => {
     } else {
       console.log('⚠️ Typebot não pronto, tentando inicializar...')
       initTypebot().then(() => {
-        if (typebot && typeof typebot.open === 'function') {
+        if (typebot && typeof typebot.open === 'function' && isMounted.value) {
           typebot.open()
           isTypebotOpen.value = true
           emit('onOpen')
@@ -209,25 +257,57 @@ const handleButtonClick = () => {
   openTypebot()
 }
 
+// Watch para detectar mudanças no typebotId
+watch(() => props.typebotId, (newId) => {
+  if (newId && isMounted.value && !isInitializing.value) {
+    console.log('🔄 Typebot ID alterado, reinicializando...')
+    if (typebot && typeof typebot.destroy === 'function') {
+      typebot.destroy()
+    }
+    typebot = null
+    setTimeout(() => {
+      initTypebot()
+    }, 100)
+  }
+})
+
 // Lifecycle hooks
 onMounted(async () => {
   console.log('🎬 TypebotChat montado')
+  isMounted.value = true
+  
   await nextTick()
   
-  // Aguardar um pouco antes de inicializar
+  // Verificar se tem um ID válido
+  if (!props.typebotId) {
+    console.error('❌ Typebot ID não fornecido')
+    return
+  }
+  
+  // Aguardar um pouco antes de inicializar para evitar conflitos
   setTimeout(() => {
-    initTypebot()
-  }, 100)
+    if (isMounted.value) {
+      initTypebot()
+    }
+  }, 200)
 })
 
-onUnmounted(() => {
-  console.log('🔚 TypebotChat desmontado')
-  if (typebot && typeof typebot.destroy === 'function') {
+onBeforeUnmount(() => {
+  console.log('🔚 TypebotChat sendo desmontado')
+  isMounted.value = false
+  isInitializing.value = false
+  
+  if (typebot) {
     try {
-      typebot.destroy()
+      if (typeof typebot.destroy === 'function') {
+        typebot.destroy()
+      } else if (typeof typebot.close === 'function') {
+        typebot.close()
+      }
     } catch (error) {
       console.error('Erro ao destruir Typebot:', error)
     }
+    typebot = null
   }
 })
 
@@ -238,10 +318,11 @@ defineExpose({
 })
 </script>
 
-<style scoped>
+<style scoped lang="css">
 .typebot-wrapper {
   width: 100%;
   height: 100%;
+  position: relative;
 }
 
 .typebot-container {
@@ -251,6 +332,12 @@ defineExpose({
   border-radius: 8px;
   background-color: #f9f9f9;
   border: 1px solid #e0e0e0;
+  overflow: hidden;
+}
+
+.v-theme--dark .typebot-container {
+  background-color: #1e1e1e;
+  border-color: #333;
 }
 
 .typebot-floating-button {
@@ -294,6 +381,7 @@ defineExpose({
   font-size: 10px;
   opacity: 0.9;
   text-align: center;
+  line-height: 1;
 }
 
 @keyframes pulse {

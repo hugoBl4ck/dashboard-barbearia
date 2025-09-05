@@ -128,9 +128,12 @@
             </v-card-title>
             <div class="typebot-wrapper">
               <TypebotChat
+                v-if="showChatPanel"
+                :key="`sidebar-${typebotId}`"
                 :typebot-id="typebotId"
                 :auto-open="true"
                 :theme="chatTheme"
+                :show-floating-button="false"
                 @on-open="onChatOpen"
                 @on-close="onChatClose"
               />
@@ -143,11 +146,12 @@
     <!-- CHAT FLUTUANTE (MOBILE/QUANDO PAINEL FECHADO) -->
     <TypebotChat
       v-if="!showChatPanel || $vuetify.display.smAndDown"
+      :key="`floating-${typebotId}`"
       :typebot-id="typebotId"
       :show-floating-button="true"
       :auto-open="false"
       :theme="chatTheme"
-      button-text="Ajuda"
+      :button-text="chatButtonText"
       @on-open="onChatOpen"
       @on-close="onChatClose"
     />
@@ -348,13 +352,19 @@ const timestampModal = ref(null);
 const showChatPanel = ref(false);
 const showNotification = ref(false);
 const notificationMessage = ref('');
+const chatButtonText = ref('Ajuda');
 
 // ✅ CONFIGURAÇÃO DO TYPEBOT - VERIFIQUE SEU ID!
 const typebotId = 'cmeybnpf40006jm04plk5rehg'; // Confirme se este ID está correto
 
 const chatTheme = { 
-  button: { backgroundColor: '#1976d2' }, 
-  chatWindow: { backgroundColor: '#ffffff' }
+  button: { 
+    backgroundColor: '#1976d2',
+    iconColor: '#ffffff'
+  }, 
+  chatWindow: { 
+    backgroundColor: '#ffffff' 
+  }
 };
 
 // Computeds (exatamente como estava)
@@ -598,18 +608,32 @@ const getPriceColorClass = (slot) => {
 const toggleChatPanel = () => {
   showChatPanel.value = !showChatPanel.value;
   console.log('💬 Chat panel toggled:', showChatPanel.value);
+  
+  // Atualizar texto do botão baseado no estado
+  if (showChatPanel.value) {
+    chatButtonText.value = 'Chat Ativo';
+  } else {
+    chatButtonText.value = 'Ajuda';
+  }
 };
 
 const onChatOpen = () => {
   console.log('✅ Chat aberto');
   notificationMessage.value = 'Chat iniciado! 🤖';
   showNotification.value = true;
+  chatButtonText.value = 'Chat Ativo';
 };
 
 const onChatClose = () => {
   console.log('❌ Chat fechado');
   notificationMessage.value = 'Chat finalizado 👋';
   showNotification.value = true;
+  chatButtonText.value = 'Ajuda';
+  
+  // Se estava no painel lateral, fecha ele também
+  if (showChatPanel.value) {
+    showChatPanel.value = false;
+  }
 };
 
 // Watchers
