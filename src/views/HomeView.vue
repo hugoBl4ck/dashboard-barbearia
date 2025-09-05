@@ -47,58 +47,34 @@
       </v-col>
     </v-row>
 
-    <!-- AGENDA DO DIA (GRID) -->
+    <!-- ÁREA PRINCIPAL COM LAYOUT CONDICIONAL -->
     <v-card elevation="0" class="mt-6">
       <v-card-title class="d-flex align-center">
         <v-icon class="mr-2">mdi-clock-outline</v-icon>Agenda do Dia
         <v-spacer></v-spacer>
-        <!-- Botão para toggle do chat -->
-        <v-btn 
-          v-if="$vuetify.display.mdAndUp" 
-          :color="showChatPanel ? 'secondary' : 'info'" 
-          variant="outlined" 
-          @click="toggleChatPanel" 
-          prepend-icon="mdi-chat"
-          class="mr-2"
-        >
+        <v-btn v-if="$vuetify.display.mdAndUp" :color="showChatPanel ? 'secondary' : 'info'" variant="outlined" @click="toggleChatPanel" prepend-icon="mdi-chat" class="mr-2">
           {{ showChatPanel ? 'Fechar Chat' : 'Chat Virtual' }}
         </v-btn>
         <v-btn color="primary" @click="abrirModalParaNovoVazio" prepend-icon="mdi-plus">Novo Agendamento</v-btn>
       </v-card-title>
       <v-divider></v-divider>
       
-      <!-- Layout com chat lateral (desktop) -->
-      <div v-if="$vuetify.display.mdAndUp && showChatPanel" class="d-flex">
-        <!-- Agenda principal -->
+      <div class="d-flex">
         <div class="flex-grow-1">
           <div v-if="loading" class="text-center pa-16"><v-progress-circular indeterminate color="primary" size="64"></v-progress-circular></div>
           <div v-else-if="estaFechado" class="text-center pa-16"><v-icon size="64" color="grey">mdi-door-closed-lock</v-icon><p class="mt-4 text-medium-emphasis">Barbearia Fechada</p></div>
           <v-container v-else fluid>
             <v-row dense>
-              <v-col v-for="slot in agendaDoDia" :key="slot.timestamp" cols="12" sm="6" md="4" xl="3">
-                <v-card class="slot-card" 
-                  :variant="slot.tipo === 'livre' ? 'outlined' : 'flat'" 
-                  :color="getSlotColor(slot)" 
-                  @click="handleItemClick(slot)" 
-                  :disabled="slot.tipo === 'passado'">
+              <v-col v-for="slot in agendaDoDia" :key="slot.timestamp" cols="12" sm="6" md="4" lg="3">
+                <v-card class="slot-card" :variant="slot.tipo === 'livre' ? 'outlined' : 'flat'" :color="getSlotColor(slot)" @click="handleItemClick(slot)" :disabled="slot.tipo === 'passado' || slot.tipo === 'ocupado-meio'">
                   <v-card-text class="pa-3 text-center">
-                    <div class="font-weight-bold mb-1" :class="getTextColorClass(slot)">
-                      {{ slot.horarioFormatado }}
-                    </div>
-                    <v-chip size="small" :color="getChipColor(slot)" class="mb-1">
+                    <div class="font-weight-bold mb-1">{{ slot.horarioFormatado }}</div>
+                    <v-chip size="small" :color="getChipColor(slot.status)" class="mb-1">
                       <v-icon start size="16">{{ getChipIcon(slot.status) }}</v-icon>
                       {{ slot.titulo }}
                     </v-chip>
-                    <div class="text-caption truncate-text" 
-                         :class="getTextColorClass(slot)" 
-                         v-if="slot.tipo === 'agendamento'">
-                      {{ slot.detalhes }}
-                    </div>
-                    <div class="text-caption font-weight-bold" 
-                         :class="getPriceColorClass(slot)"
-                         v-if="slot.tipo === 'agendamento' && slot.preco">
-                      {{ (slot.preco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}
-                    </div>
+                    <div class="text-caption truncate-text" v-if="slot.tipo === 'agendamento'">{{ slot.detalhes }}</div>
+                    <div class="text-caption font-weight-bold text-green-darken-1" v-if="slot.tipo === 'agendamento' && slot.preco">{{ (slot.preco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}</div>
                   </v-card-text>
                 </v-card>
               </v-col>
@@ -106,107 +82,43 @@
           </v-container>
         </div>
 
-        <!-- Painel do Chat (lateral) -->
-        <div class="chat-sidebar">
-          <v-card flat height="600" class="chat-container">
+        <div v-if="$vuetify.display.mdAndUp && showChatPanel" class="chat-sidebar">
+          <v-card flat height="100%" class="chat-container">
             <v-card-title class="d-flex align-center bg-primary text-white">
-              <v-icon class="mr-2">mdi-robot-excited</v-icon>
-              Assistente Virtual
+              <v-icon class="mr-2">mdi-robot-excited</v-icon>Assistente Virtual
               <v-spacer></v-spacer>
-              <v-btn icon variant="text" @click="toggleChatPanel" size="small">
-                <v-icon color="white">mdi-close</v-icon>
-              </v-btn>
+              <v-btn icon variant="text" @click="toggleChatPanel" size="small"><v-icon color="white">mdi-close</v-icon></v-btn>
             </v-card-title>
             <div class="typebot-wrapper">
-              <TypebotChat
-                :typebot-id="typebotId"
-                :auto-open="true"
-                :theme="chatTheme"
-                @on-open="onChatOpen"
-                @on-close="onChatClose"
-              />
+              <TypebotChat :typebot-id="typebotId" :auto-open="true" :theme="chatTheme" @on-open="onChatOpen" />
             </div>
           </v-card>
         </div>
       </div>
-
-      <!-- Layout normal (sem chat lateral) -->
-      <div v-else>
-        <div v-if="loading" class="text-center pa-16"><v-progress-circular indeterminate color="primary" size="64"></v-progress-circular></div>
-        <div v-else-if="estaFechado" class="text-center pa-16"><v-icon size="64" color="grey">mdi-door-closed-lock</v-icon><p class="mt-4 text-medium-emphasis">Barbearia Fechada</p></div>
-        <v-container v-else fluid>
-          <v-row dense>
-            <v-col v-for="slot in agendaDoDia" :key="slot.timestamp" cols="12" sm="6" md="4" lg="3">
-              <v-card class="slot-card" 
-                :variant="slot.tipo === 'livre' ? 'outlined' : 'flat'" 
-                :color="getSlotColor(slot)" 
-                @click="handleItemClick(slot)" 
-                :disabled="slot.tipo === 'passado'">
-                <v-card-text class="pa-3 text-center">
-                  <div class="font-weight-bold mb-1" :class="getTextColorClass(slot)">
-                    {{ slot.horarioFormatado }}
-                  </div>
-                  <v-chip size="small" :color="getChipColor(slot)" class="mb-1">
-                    <v-icon start size="16">{{ getChipIcon(slot.status) }}</v-icon>
-                    {{ slot.titulo }}
-                  </v-chip>
-                  <div class="text-caption truncate-text" 
-                       :class="getTextColorClass(slot)" 
-                       v-if="slot.tipo === 'agendamento'">
-                    {{ slot.detalhes }}
-                  </div>
-                  <div class="text-caption font-weight-bold" 
-                       :class="getPriceColorClass(slot)"
-                       v-if="slot.tipo === 'agendamento' && slot.preco">
-                    {{ (slot.preco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}
-                  </div>
-                </v-card-text>
-              </v-card>
-            </v-col>
-          </v-row>
-        </v-container>
-      </div>
     </v-card>
 
-    <!-- Chat flutuante para mobile/tablet -->
-    <TypebotChat
-      v-if="!showChatPanel"
-      :typebot-id="typebotId"
-      :show-floating-button="true"
-      :auto-open="false"
-      :theme="chatTheme"
-      button-text="Ajuda"
-      @on-open="onChatOpen"
-    />
+    <TypebotChat v-if="!showChatPanel || $vuetify.display.smAndDown" :typebot-id="typebotId" :show-floating-button="true" :theme="chatTheme" button-text="Ajuda" @on-open="onChatOpen" />
 
-    <!-- Modal de Agendamento (mantido exatamente igual) -->
     <v-dialog v-model="modalAberto" max-width="500px" persistent>
-      <v-card class="pa-4">
-        <v-card-title class="text-h5">{{ editando ? 'Editar' : 'Novo' }} Agendamento</v-card-title>
-        <v-card-subtitle>{{ dataFormatada.diaDaSemana }}, {{ dataFormatada.restoDaData }} às {{ horarioModal }}</v-card-subtitle>
-        <v-card-text>
-          <v-select v-model="servicoSelecionado" :items="listaServicos" item-title="nome" item-value="id" label="Serviço" variant="outlined" density="compact" return-object :disabled="editando"></v-select>
-          <v-text-field v-model="nomeCliente" label="Nome do Cliente" variant="outlined" density="compact" class="mt-4"></v-text-field>
-          <v-text-field v-model="telefoneCliente" label="Telefone" variant="outlined" density="compact"></v-text-field>
-          <v-text-field v-model.number="precoServico" label="Valor Final (R$)" variant="outlined" density="compact" type="number" prefix="R$"></v-text-field>
-        </v-card-text>
-        <v-card-actions class="justify-end">
-          <v-btn text @click="fecharModal">Cancelar</v-btn>
-          <v-btn v-if="editando" color="red" text @click="excluirAgendamento">Excluir</v-btn>
-          <v-btn color="primary" variant="flat" @click="salvarAgendamento">{{ editando ? 'Salvar' : 'Adicionar' }}</v-btn>
-        </v-card-actions>
-      </v-card>
+        <v-card class="pa-4">
+          <v-card-title class="text-h5">{{ editando ? 'Editar' : 'Novo' }} Agendamento</v-card-title>
+          <v-card-subtitle>{{ dataFormatada.diaDaSemana }}, {{ dataFormatada.restoDaData }} às {{ horarioModal }}</v-card-subtitle>
+          <v-card-text>
+            <v-select v-model="servicoSelecionado" :items="listaServicos" item-title="nome" item-value="id" label="Serviço" variant="outlined" density="compact" return-object :disabled="editando"></v-select>
+            <v-text-field v-model="nomeCliente" label="Nome do Cliente" variant="outlined" density="compact" class="mt-4"></v-text-field>
+            <v-text-field v-model="telefoneCliente" label="Telefone" variant="outlined" density="compact"></v-text-field>
+            <v-text-field v-model.number="precoServico" label="Valor Final (R$)" variant="outlined" density="compact" type="number" prefix="R$"></v-text-field>
+          </v-card-text>
+          <v-card-actions class="justify-end">
+            <v-btn text @click="fecharModal">Cancelar</v-btn>
+            <v-btn v-if="editando" color="red" text @click="excluirAgendamento">Excluir</v-btn>
+            <v-btn color="primary" variant="flat" @click="salvarAgendamento">{{ editando ? 'Salvar' : 'Adicionar' }}</v-btn>
+          </v-card-actions>
+        </v-card>
     </v-dialog>
 
-    <!-- Snackbar para notificações do chat -->
-    <v-snackbar
-      v-model="showNotification"
-      :timeout="3000"
-      color="success"
-      location="top"
-    >
-      <v-icon class="mr-2">mdi-check-circle</v-icon>
-      {{ notificationMessage }}
+    <v-snackbar v-model="showNotification" :timeout="3000" color="success" location="top">
+      <v-icon class="mr-2">mdi-check-circle</v-icon> {{ notificationMessage }}
     </v-snackbar>
   </v-container>
 </template>
@@ -221,38 +133,10 @@
 .slot-card { transition: all 0.2s ease-in-out; cursor: pointer; height: 110px; display: flex; flex-direction: column; justify-content: center; border-radius: 12px; }
 .slot-card:hover:not([disabled]) { transform: translateY(-4px); box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
 .truncate-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
-
-/* Estilos específicos para o chat */
-.chat-sidebar {
-  width: 400px;
-  min-width: 400px;
-  border-left: 1px solid rgba(0,0,0,0.12);
-  background-color: #f5f5f5;
-}
-
-.chat-container {
-  border-radius: 0;
-  height: 100%;
-}
-
-.typebot-wrapper {
-  height: calc(100% - 64px); /* Subtraindo altura do header */
-  overflow: hidden;
-}
-
-/* Ajustes responsivos */
-@media (max-width: 1280px) {
-  .chat-sidebar {
-    width: 350px;
-    min-width: 350px;
-  }
-}
-
-@media (max-width: 960px) {
-  .chat-sidebar {
-    display: none;
-  }
-}
+.chat-sidebar { width: 400px; min-width: 400px; border-left: 1px solid rgba(0,0,0,0.12); }
+.v-theme--dark .chat-sidebar { border-left: 1px solid rgba(255,255,255,0.12); }
+.chat-container { border-radius: 0; height: 100%; }
+.typebot-wrapper { height: calc(100vh - 280px); /* Ajuste aproximado da altura */ }
 </style>
 
 <script setup>
@@ -261,7 +145,6 @@ import { db } from '@/firebase';
 import { collection, query, where, getDocs, orderBy, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import TypebotChat from '@/components/TypebotChat.vue';
 
-// Estados existentes (mantidos todos)
 const loading = ref(true);
 const allAppointments = ref([]);
 const dataExibida = ref(new Date());
@@ -276,53 +159,30 @@ const editando = ref(false);
 const idAgendamentoEditando = ref(null);
 const horarioModal = ref('');
 const timestampModal = ref(null);
-
-// Novos estados para o chat
 const showChatPanel = ref(false);
 const showNotification = ref(false);
 const notificationMessage = ref('');
+const typebotId = 'chatbot-barbearia-oz56w8t'; // ⚠️ SUBSTITUA PELO SEU ID REAL
+const chatTheme = { button: { backgroundColor: '#1976d2' }, chatWindow: { backgroundColor: '#FFFFFF' }};
 
-// Configure seu ID do Typebot aqui
-const typebotId = 'SEU_TYPEBOT_ID_AQUI'; // ⚠️ SUBSTITUA pelo seu ID real
-
-// Tema do chat
-const chatTheme = {
-  button: { backgroundColor: '#1976d2' },
-  chatWindow: { backgroundColor: '#ffffff' },
-  container: { borderRadius: '0px' }
-};
-
-// Computeds existentes (mantidos todos exatamente iguais)
 const dataFormatada = computed(() => {
     const d = dataExibida.value;
-    return {
-        diaDaSemana: d.toLocaleDateString('pt-BR', { weekday: 'long' }),
-        restoDaData: d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' })
-    };
+    return { diaDaSemana: d.toLocaleDateString('pt-BR', { weekday: 'long' }), restoDaData: d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'long' }) };
 });
-
 const estaFechado = computed(() => !loading.value && !configHorarios.value);
-
 const todayAppointments = computed(() => {
   const selectedDateStr = dataExibida.value.toISOString().split('T')[0];
   return allAppointments.value.filter(apt => new Date(apt.DataHoraISO).toISOString().split('T')[0] === selectedDateStr);
 });
-
 const totalClients = computed(() => new Set(allAppointments.value.map(apt => apt.TelefoneCliente)).size);
 const completedToday = computed(() => todayAppointments.value.filter(apt => apt.Status === 'Concluído'));
 const totalRevenue = computed(() => completedToday.value.reduce((sum, apt) => sum + (apt.preco || 0), 0));
-
 const proximoAgendamento = computed(() => {
   const agora = new Date();
-  const proximo = todayAppointments.value
-    .filter(a => new Date(a.DataHoraISO) > agora && a.Status === 'Agendado')
-    .sort((a, b) => new Date(a.DataHoraISO) - new Date(b.DataHoraISO))[0];
-  if (proximo) {
-    proximo.horarioFormatado = new Date(proximo.DataHoraISO).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  }
+  const proximo = todayAppointments.value.filter(a => new Date(a.DataHoraISO) > agora && a.Status === 'Agendado').sort((a, b) => new Date(a.DataHoraISO) - new Date(b.DataHoraISO))[0];
+  if (proximo) proximo.horarioFormatado = new Date(proximo.DataHoraISO).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   return proximo;
 });
-
 const agendaDoDia = computed(() => {
     if (!configHorarios.value) return [];
     const agenda = [];
@@ -346,8 +206,7 @@ const agendaDoDia = computed(() => {
         const estaNoPassado = dataSlot < new Date() && dataExibida.value.toDateString() === new Date().toDateString();
         const status = agendamento ? (estaNoPassado ? 'passado' : 'agendamento') : (estaNoPassado ? 'passado' : 'livre');
         agenda.push({
-            tipo: status === 'agendamento' ? 'agendamento' : (status === 'livre' ? 'livre' : 'passado'),
-            status: status,
+            tipo: status, status: status, 
             ...(agendamento && { ...agendamento }),
             horarioFormatado: formatTime(minuto),
             titulo: agendamento ? agendamento.NomeCliente : (estaNoPassado ? 'Encerrado' : 'Disponível'),
@@ -357,8 +216,6 @@ const agendaDoDia = computed(() => {
     }
     return agenda;
 });
-
-// Funções existentes (mantidas todas exatamente iguais)
 const fetchData = async () => {
   loading.value = true;
   try {
@@ -371,24 +228,23 @@ const fetchData = async () => {
   } catch (error) { console.error("Erro ao buscar dados:", error); } 
   finally { loading.value = false; }
 };
-
 const fetchConfigHorarios = async (data) => {
   const diaDaSemana = data.getDay();
   const docRef = doc(db, 'Horarios', String(diaDaSemana));
   const docSnap = await getDoc(docRef);
   configHorarios.value = (docSnap.exists() && docSnap.data().InicioManha) ? docSnap.data() : null;
 };
-
-const mudarDia = (dias) => { 
-  const novaData = new Date(dataExibida.value); 
-  novaData.setDate(novaData.getDate() + dias); 
-  dataExibida.value = novaData; 
-};
-
+watch(dataExibida, async (novaData) => {
+  loading.value = true;
+  await fetchConfigHorarios(novaData);
+  loading.value = false;
+});
+onMounted(() => { fetchData(); });
+const mudarDia = (dias) => { const novaData = new Date(dataExibida.value); novaData.setDate(novaData.getDate() + dias); dataExibida.value = novaData; };
+const irParaHoje = () => { dataExibida.value = new Date(); };
 const fecharModal = () => {
     modalAberto.value = false; editando.value = false; idAgendamentoEditando.value = null; nomeCliente.value = ''; telefoneCliente.value = ''; servicoSelecionado.value = null; horarioModal.value = ''; timestampModal.value = null; precoServico.value = 0;
 };
-
 const handleItemClick = (item) => {
     if (item.tipo === 'passado') return;
     horarioModal.value = item.horarioFormatado;
@@ -402,12 +258,15 @@ const handleItemClick = (item) => {
     }
     modalAberto.value = true;
 };
-
+watch(servicoSelecionado, (novoServico) => {
+  if (!editando.value && novoServico) {
+    precoServico.value = novoServico.preco || 0;
+  }
+});
 const abrirModalParaNovoVazio = () => {
     const primeiroSlotLivre = agendaDoDia.value.find(item => item.tipo === 'livre');
     if (primeiroSlotLivre) handleItemClick(primeiroSlotLivre); else alert("Não há horários vagos hoje.");
 };
-
 const salvarAgendamento = async () => {
     if (!nomeCliente.value || !servicoSelecionado.value) return alert('Nome e serviço são obrigatórios.');
     try {
@@ -425,88 +284,42 @@ const salvarAgendamento = async () => {
     } catch (error) { console.error("Erro ao salvar:", error); alert("Ocorreu um erro ao salvar."); }
     finally { fecharModal(); fetchData(); }
 };
-
 const excluirAgendamento = async () => {
     if (!idAgendamentoEditando.value || !confirm(`Excluir agendamento de ${nomeCliente.value}?`)) return;
     try { await deleteDoc(doc(db, 'Agendamentos', idAgendamentoEditando.value)); }
     finally { fecharModal(); fetchData(); }
 };
-
-// Funções de estilo (mantidas exatamente iguais)
 const getSlotColor = (slot) => {
   if (slot.status === 'agendamento') return 'primary';
   if (slot.status === 'passado') return 'grey-lighten-2';
   return undefined;
 };
-
-const getChipColor = (slot) => {
-  const bgColor = getSlotColor(slot);
-  if (slot.status === 'agendamento') {
-    if (bgColor === 'primary') return 'white';
-    return 'primary';
-  }
-  if (slot.status === 'livre') return 'success';
+const getChipColor = (status) => {
+  if (status === 'agendamento') return 'primary';
+  if (status === 'livre') return 'success';
   return 'grey';
 };
-
 const getChipIcon = (status) => {
   if (status === 'agendamento') return 'mdi-account-check';
   if (status === 'livre') return 'mdi-plus-box-outline';
-  return 'mdi-check-circle';
+  if (status === 'passado') return 'mdi-check-circle';
+  return 'mdi-help-circle';
 };
-
 const getTextColorClass = (slot) => {
   const bgColor = getSlotColor(slot);
-  return isLightColor(bgColor) ? 'text-grey-darken-3' : 'text-white';
+  return ['grey-lighten-2'].includes(bgColor) ? 'text-grey-darken-3' : 'text-white';
 };
-
 const getPriceColorClass = (slot) => {
   const bgColor = getSlotColor(slot);
-  return isLightColor(bgColor) ? 'text-green-darken-2' : 'text-green-lighten-2';
+  return ['grey-lighten-2'].includes(bgColor) ? 'text-green-darken-2' : 'text-green-lighten-2';
 };
 
-const isLightColor = (color) => {
-  const lightColors = [
-    'grey-lighten-2', 'grey-lighten-3', 'grey-lighten-4', 'grey-lighten-5',
-    'blue-lighten-4', 'blue-lighten-5',
-    'green-lighten-4', 'green-lighten-5',
-    'yellow', 'yellow-lighten-1', 'yellow-lighten-2',
-    'orange-lighten-3', 'orange-lighten-4',
-    'pink-lighten-4', 'pink-lighten-5',
-    'purple-lighten-4', 'purple-lighten-5'
-  ];
-  if (!color) return true;
-  return lightColors.includes(color);
-};
-
-// NOVAS FUNÇÕES PARA O CHAT
+// Novas Funções para o Chat Integrado
 const toggleChatPanel = () => {
   showChatPanel.value = !showChatPanel.value;
 };
-
 const onChatOpen = () => {
   notificationMessage.value = 'Assistente virtual iniciado! 🤖';
   showNotification.value = true;
 };
-
-const onChatClose = () => {
-  notificationMessage.value = 'Chat finalizado. Obrigado! 👋';
-  showNotification.value = true;
-};
-
-// Watchers existentes (mantidos)
-watch(dataExibida, async (novaData) => {
-  loading.value = true;
-  await fetchConfigHorarios(novaData);
-  loading.value = false;
-});
-
-watch(servicoSelecionado, (novoServico) => {
-  if (!editando.value && novoServico) {
-    precoServico.value = novoServico.preco || 0;
-  }
-});
-
-// Lifecycle
-onMounted(() => { fetchData(); });
 </script>
