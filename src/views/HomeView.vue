@@ -48,76 +48,89 @@
     </v-row>
 
     <!-- ÁREA PRINCIPAL COM LAYOUT CONDICIONAL -->
-    <v-card elevation="0" class="mt-6">
-      <v-card-title class="d-flex align-center">
-        <v-icon class="mr-2">mdi-clock-outline</v-icon>Agenda do Dia
-        <v-spacer></v-spacer>
-        <v-btn color="primary" @click="abrirModalParaNovoVazio" prepend-icon="mdi-plus">Novo Agendamento</v-btn>
-      </v-card-title>
-      <v-divider></v-divider>
-      
-      <div class="d-flex">
-        <div class="flex-grow-1">
-          <div v-if="loading" class="text-center pa-16"><v-progress-circular indeterminate color="primary" size="64"></v-progress-circular></div>
-          <div v-else-if="estaFechado" class="text-center pa-16"><v-icon size="64" color="grey">mdi-door-closed-lock</v-icon><p class="mt-4 text-medium-emphasis">Barbearia Fechada</p></div>
-          <v-container v-else fluid>
-            <v-row dense>
-              <v-col v-for="slot in agendaDoDia" :key="slot.timestamp" cols="12" sm="6" md="4" lg="3">
-                <v-card class="slot-card" :variant="slot.tipo === 'livre' ? 'outlined' : 'flat'" :color="getSlotColor(slot)" @click="handleItemClick(slot)" :disabled="slot.tipo === 'passado' || slot.tipo === 'ocupado-meio'">
-                  <v-card-text class="pa-3 text-center">
-                    <div class="font-weight-bold mb-1" :class="getTextColorClass(slot)">{{ slot.horarioFormatado }}</div>
-                    <v-chip size="small" :color="getChipColor(slot.status)" class="mb-1">
-                      <v-icon start size="16">{{ getChipIcon(slot.status) }}</v-icon>1
-                      {{ slot.titulo }}
-                    </v-chip>
-                    <div class="text-caption truncate-text text-white" :class="getTextColorClass(slot)" v-if="slot.tipo === 'agendamento'">{{ slot.detalhes }}</div>
-                    <div class="text-caption font-weight-bold" :class="getPriceColorClass(slot)" v-if="slot.tipo === 'agendamento' && slot.preco">{{ (slot.preco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}</div>
-                    <div class="text-caption font-weight-bold text-green-lighten-2 mt-1" v-if="slot.tipo === 'agendamento' && slot.preco"> {{ (slot.preco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}</div>
-                  </v-card-text>
-                </v-card>
-              </v-col>
-            </v-row>
-          </v-container>
-        </div>
-
-        <div v-if="$vuetify.display.mdAndUp && showChatPanel" class="chat-sidebar">
-          <v-card flat height="100%" class="chat-container">
-            <v-card-title class="d-flex align-center bg-primary text-white">
-              <v-icon class="mr-2">mdi-robot-excited</v-icon>Assistente Virtual
-              <v-spacer></v-spacer>
-              <v-btn icon variant="text" @click="toggleChatPanel" size="small"><v-icon color="white">mdi-close</v-icon></v-btn>
-            </v-card-title>
-            <div class="typebot-wrapper">
-              <TypebotChat :typebot-id="typebotId" @on-open="onChatOpen" />
-            </div>
-          </v-card>
-        </div>
+<v-card elevation="0" class="mt-6">
+  <v-card-title class="d-flex align-center">
+    <v-icon class="mr-2">mdi-clock-outline</v-icon>Agenda do Dia
+    <v-spacer></v-spacer>
+    <v-btn color="primary" @click="abrirModalParaNovoVazio" prepend-icon="mdi-plus">Novo Agendamento</v-btn>
+  </v-card-title>
+  <v-divider></v-divider>
+  
+  <div class="d-flex">
+    <div class="flex-grow-1">
+      <div v-if="loading" class="text-center pa-16">
+        <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
       </div>
-    </v-card>
+      <div v-else-if="estaFechado" class="text-center pa-16">
+        <v-icon size="64" color="grey">mdi-door-closed-lock</v-icon>
+        <p class="mt-4 text-medium-emphasis">Barbearia Fechada</p>
+      </div>
+      <v-container v-else fluid>
+        <v-row dense>
+          <v-col v-for="slot in agendaDoDia" :key="slot.timestamp" cols="12" sm="6" md="4" lg="3">
+            <v-card 
+              class="slot-card" 
+              :variant="slot.tipo === 'livre' ? 'outlined' : 'flat'" 
+              :color="getSlotColor(slot)" 
+              @click="handleItemClick(slot)" 
+              :disabled="slot.tipo === 'passado' || slot.tipo === 'ocupado-meio'">
+              <v-card-text class="pa-3 text-center">
+                <div class="font-weight-bold mb-1" :class="getTextColorClass(slot)">{{ slot.horarioFormatado }}</div>
+                <v-chip size="small" :color="getChipColor(slot.status)" class="mb-1">
+                  <v-icon start size="16">{{ getChipIcon(slot.status) }}</v-icon>
+                  {{ slot.titulo }}
+                </v-chip>
+                <div class="text-caption truncate-text" :class="getTextColorClass(slot)" v-if="slot.tipo === 'agendamento'">{{ slot.detalhes }}</div>
+                <div class="text-caption font-weight-bold" :class="getPriceColorClass(slot)" v-if="slot.tipo === 'agendamento' && slot.preco">
+                  {{ (slot.preco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}
+                </div>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
+      </v-container>
+    </div>
 
-    <TypebotChat v-if="!showChatPanel || $vuetify.display.smAndDown" :typebot-id="typebotId" :show-floating-button="true" :theme="chatTheme" button-text="Ajuda" @on-open="onChatOpen" />
+    <div v-if="$vuetify.display.mdAndUp && showChatPanel" class="chat-sidebar">
+      <v-card flat height="100%" class="chat-container">
+        <v-card-title class="d-flex align-center bg-primary text-white">
+          <v-icon class="mr-2">mdi-robot-excited</v-icon>Assistente Virtual
+          <v-spacer></v-spacer>
+          <v-btn icon variant="text" @click="toggleChatPanel" size="small">
+            <v-icon color="white">mdi-close</v-icon>
+          </v-btn>
+        </v-card-title>
+        <div class="typebot-wrapper">
+          <TypebotChat :typebot-id="typebotId" @on-open="onChatOpen" />
+        </div>
+      </v-card>
+    </div>
+  </div>
+</v-card>
 
-    <v-dialog v-model="modalAberto" max-width="500px" persistent>
-        <v-card class="pa-4">
-          <v-card-title class="text-h5">{{ editando ? 'Editar' : 'Novo' }} Agendamento</v-card-title>
-          <v-card-subtitle>{{ dataFormatada.diaDaSemana }}, {{ dataFormatada.restoDaData }} às {{ horarioModal }}</v-card-subtitle>
-          <v-card-text>
-            <v-select v-model="servicoSelecionado" :items="listaServicos" item-title="nome" item-value="id" label="Serviço" variant="outlined" density="compact" return-object :disabled="editando"></v-select>
-            <v-text-field v-model="nomeCliente" label="Nome do Cliente" variant="outlined" density="compact" class="mt-4"></v-text-field>
-            <v-text-field v-model="telefoneCliente" label="Telefone" variant="outlined" density="compact"></v-text-field>
-            <v-text-field v-model.number="precoServico" label="Valor Final (R$)" variant="outlined" density="compact" type="number" prefix="R$"></v-text-field>
-          </v-card-text>
-          <v-card-actions class="justify-end">
-            <v-btn text @click="fecharModal">Cancelar</v-btn>
-            <v-btn v-if="editando" color="red" text @click="excluirAgendamento">Excluir</v-btn>
-            <v-btn color="primary" variant="flat" @click="salvarAgendamento">{{ editando ? 'Salvar' : 'Adicionar' }}</v-btn>
-          </v-card-actions>
-        </v-card>
-    </v-dialog>
+<TypebotChat v-if="!showChatPanel || $vuetify.display.smAndDown" :typebot-id="typebotId" :show-floating-button="true" :theme="chatTheme" button-text="Ajuda" @on-open="onChatOpen" />
 
-    <v-snackbar v-model="showNotification" :timeout="3000" color="success" location="top">
-      <v-icon class="mr-2">mdi-check-circle</v-icon> {{ notificationMessage }}
-    </v-snackbar>
+<v-dialog v-model="modalAberto" max-width="500px" persistent>
+  <v-card class="pa-4">
+    <v-card-title class="text-h5">{{ editando ? 'Editar' : 'Novo' }} Agendamento</v-card-title>
+    <v-card-subtitle>{{ dataFormatada.diaDaSemana }}, {{ dataFormatada.restoDaData }} às {{ horarioModal }}</v-card-subtitle>
+    <v-card-text>
+      <v-select v-model="servicoSelecionado" :items="listaServicos" item-title="nome" item-value="id" label="Serviço" variant="outlined" density="compact" return-object :disabled="editando"></v-select>
+      <v-text-field v-model="nomeCliente" label="Nome do Cliente" variant="outlined" density="compact" class="mt-4"></v-text-field>
+      <v-text-field v-model="telefoneCliente" label="Telefone" variant="outlined" density="compact"></v-text-field>
+      <v-text-field v-model.number="precoServico" label="Valor Final (R$)" variant="outlined" density="compact" type="number" prefix="R$"></v-text-field>
+    </v-card-text>
+    <v-card-actions class="justify-end">
+      <v-btn text @click="fecharModal">Cancelar</v-btn>
+      <v-btn v-if="editando" color="red" text @click="excluirAgendamento">Excluir</v-btn>
+      <v-btn color="primary" variant="flat" @click="salvarAgendamento">{{ editando ? 'Salvar' : 'Adicionar' }}</v-btn>
+    </v-card-actions>
+  </v-card>
+</v-dialog>
+
+<v-snackbar v-model="showNotification" :timeout="3000" color="success" location="top">
+  <v-icon class="mr-2">mdi-check-circle</v-icon> {{ notificationMessage }}
+</v-snackbar>
   </v-container>
 </template>
 
