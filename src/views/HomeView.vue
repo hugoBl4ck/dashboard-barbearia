@@ -355,7 +355,7 @@ const notificationMessage = ref('');
 const chatButtonText = ref('Ajuda');
 
 // ✅ CONFIGURAÇÃO DO TYPEBOT - VERIFIQUE SEU ID!
-const typebotId = 'cmeybnpf40006jm04plk5rehg'; // Confirme se este ID está correto
+const typebotId = 'my-typebot-lk5rehg'; // Confirme se este ID está correto
 
 const chatTheme = { 
   button: { 

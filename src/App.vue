@@ -48,7 +48,7 @@
     <v-main style="min-height: 100vh;" class="bg-surface-variant">
       <router-view />
     </v-main>
-    <TypebotChat :typebot-id="'cmeybnpf40006jm04plk5rehg'" />
+    <TypebotChat :typebot-id="my-typebot-lk5rehg" />
   </v-app>
 </template>
 
