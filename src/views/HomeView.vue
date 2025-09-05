@@ -114,7 +114,8 @@
             </v-row>
           </v-container>
         </div>
-
+      
+    
         <!-- PAINEL DO CHAT LATERAL (DESKTOP) -->
         <div v-if="$vuetify.display.mdAndUp && showChatPanel" class="chat-sidebar">
           <v-card flat height="600" class="chat-container">
@@ -141,8 +142,7 @@
           </v-card>
         </div>
       </div>
-    </v-card>
-
+      </v-card>
     <!-- CHAT FLUTUANTE (MOBILE/QUANDO PAINEL FECHADO) -->
     <TypebotChat
       v-if="!showChatPanel || $vuetify.display.smAndDown"
@@ -155,6 +155,8 @@
       @on-open="onChatOpen"
       @on-close="onChatClose"
     />
+
+    
 
     <!-- MODAL DE AGENDAMENTO -->
     <v-dialog v-model="modalAberto" max-width="500px" persistent>
@@ -348,7 +350,6 @@ const idAgendamentoEditando = ref(null);
 const horarioModal = ref('');
 const timestampModal = ref(null);
 
-// Estados do chat
 const showChatPanel = ref(false);
 const showNotification = ref(false);
 const notificationMessage = ref('');
@@ -366,6 +367,8 @@ const chatTheme = {
     backgroundColor: '#ffffff' 
   }
 };
+
+
 
 // Computeds (exatamente como estava)
 const dataFormatada = computed(() => {

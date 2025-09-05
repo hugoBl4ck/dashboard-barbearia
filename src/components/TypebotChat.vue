@@ -276,20 +276,35 @@ onMounted(async () => {
   console.log('🎬 TypebotChat montado')
   isMounted.value = true
   
-  await nextTick()
-  
   // Verificar se tem um ID válido
   if (!props.typebotId) {
     console.error('❌ Typebot ID não fornecido')
     return
   }
   
-  // Aguardar um pouco antes de inicializar para evitar conflitos
-  setTimeout(() => {
-    if (isMounted.value) {
-      initTypebot()
+  await nextTick()
+  
+  // Para modo embeddado, aguardar o container estar pronto
+  if (!props.showFloatingButton) {
+    const waitForContainer = () => {
+      if (typebotContainer.value && isMounted.value) {
+        console.log('📦 Container pronto, inicializando...')
+        initTypebot()
+      } else if (isMounted.value) {
+        console.log('⏳ Aguardando container...')
+        setTimeout(waitForContainer, 100)
+      }
     }
-  }, 200)
+    
+    setTimeout(waitForContainer, 200)
+  } else {
+    // Para modo floating, inicializar imediatamente
+    setTimeout(() => {
+      if (isMounted.value) {
+        initTypebot()
+      }
+    }, 200)
+  }
 })
 
 onBeforeUnmount(() => {
@@ -318,7 +333,7 @@ defineExpose({
 })
 </script>
 
-<style scoped lang="css">
+<style scoped>
 .typebot-wrapper {
   width: 100%;
   height: 100%;
