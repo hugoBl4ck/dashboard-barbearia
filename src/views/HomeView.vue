@@ -97,7 +97,7 @@
       </div>
     </v-card>
 
-    <TypebotChat v-if="!showChatPanel || $vuetify.display.smAndDown" :typebot-id="typebotId" :show-floating-button="true" :theme="chatTheme" button-text="Ajuda" @on-open="onChatOpen" />
+    <TypebotChat v-if="!showChatPanel || $vuetify.display.smAndDown" :typebot-id="typebotId" :show-floating-button="true" :theme="chatTheme" button-text="Chat Agendamento" @on-open="onChatOpen" />
 
     <v-dialog v-model="modalAberto" max-width="500px" persistent>
         <v-card class="pa-4">
@@ -162,7 +162,7 @@ const timestampModal = ref(null);
 const showChatPanel = ref(false);
 const showNotification = ref(false);
 const notificationMessage = ref('');
-const typebotId = 'chatbot-barbearia-oz56w8t'; // ⚠️ SUBSTITUA PELO SEU ID REAL
+const typebotId = 'my-typebot-lk5rehg'; // ⚠️ SUBSTITUA PELO SEU ID REAL
 const chatTheme = { button: { backgroundColor: '#1976d2' }, chatWindow: { backgroundColor: '#FFFFFF' }};
 
 const dataFormatada = computed(() => {
