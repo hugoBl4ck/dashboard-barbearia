@@ -321,6 +321,8 @@
 </style>
 
 <script setup>
+// Substitua apenas a seção <script setup> do seu HomeView.vue por este código:
+
 import { ref, onMounted, computed, watch } from 'vue';
 import { db } from '@/firebase';
 import { collection, query, where, getDocs, orderBy, doc, getDoc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
@@ -346,18 +348,16 @@ const timestampModal = ref(null);
 const showChatPanel = ref(false);
 const showNotification = ref(false);
 const notificationMessage = ref('');
-const showDebug = ref(false); // Para debug, mudar para true se necessário
 
-// CONFIGURAÇÃO DO TYPEBOT
-const typebotId = 'my-typebot-lk5rehg'; // ✅ Seu ID está correto
+// ✅ CONFIGURAÇÃO DO TYPEBOT - VERIFIQUE SEU ID!
+const typebotId = 'my-typebot-lk5rehg'; // Confirme se este ID está correto
 
 const chatTheme = { 
   button: { backgroundColor: '#1976d2' }, 
-  chatWindow: { backgroundColor: '#ffffff' },
-  container: { borderRadius: '0px' }
+  chatWindow: { backgroundColor: '#ffffff' }
 };
 
-// Computeds (mantidos iguais)
+// Computeds (exatamente como estava)
 const dataFormatada = computed(() => {
   const d = dataExibida.value;
   return { 
@@ -373,9 +373,10 @@ const todayAppointments = computed(() => {
   return allAppointments.value.filter(apt => new Date(apt.DataHoraISO).toISOString().split('T')[0] === selectedDateStr);
 });
 
-const totalClients = computed(() => new Set(allAppointments.value.map(apt => apt.TelefoneCliente)).size);
-const completedToday = computed(() => todayAppointments.value.filter(apt => apt.Status === 'Concluído'));
-const totalRevenue = computed(() => completedToday.value.reduce((sum, apt) => sum + (apt.preco || 0), 0));
+const totalRevenue = computed(() => {
+  const completedToday = todayAppointments.value.filter(apt => apt.Status === 'Concluído');
+  return completedToday.reduce((sum, apt) => sum + (apt.preco || 0), 0);
+});
 
 const proximoAgendamento = computed(() => {
   const agora = new Date();
@@ -427,7 +428,7 @@ const agendaDoDia = computed(() => {
   return agenda;
 });
 
-// Funções existentes (mantidas)
+// Funções existentes
 const fetchData = async () => {
   loading.value = true;
   try {
@@ -593,21 +594,21 @@ const getPriceColorClass = (slot) => {
   return ['grey-lighten-2'].includes(bgColor) ? 'text-green-darken-2' : 'text-green-lighten-2';
 };
 
-// Funções do Chat
+// ✅ FUNÇÕES DO CHAT CORRIGIDAS
 const toggleChatPanel = () => {
   showChatPanel.value = !showChatPanel.value;
-  console.log('Chat panel toggled:', showChatPanel.value);
+  console.log('💬 Chat panel toggled:', showChatPanel.value);
 };
 
 const onChatOpen = () => {
-  console.log('Chat opened event received');
-  notificationMessage.value = 'Assistente virtual iniciado! 🤖';
+  console.log('✅ Chat aberto');
+  notificationMessage.value = 'Chat iniciado! 🤖';
   showNotification.value = true;
 };
 
 const onChatClose = () => {
-  console.log('Chat closed event received');
-  notificationMessage.value = 'Chat finalizado. Obrigado! 👋';
+  console.log('❌ Chat fechado');
+  notificationMessage.value = 'Chat finalizado 👋';
   showNotification.value = true;
 };
 
@@ -626,7 +627,7 @@ watch(servicoSelecionado, (novoServico) => {
 
 // Lifecycle
 onMounted(() => { 
-  console.log('HomeView mounted');
+  console.log('🎬 HomeView iniciado');
   fetchData(); 
 });
 </script>
