@@ -316,7 +316,10 @@ const getChipIcon = (status) => {
 };
 const getTextColorClass = (slot) => {
   const bgColor = getSlotColor(slot);
-  return ['grey-lighten-2'].includes(bgColor) ? 'text-grey-darken-3' : 'text-white';
+  if (bgColor === 'grey-lighten-2') {
+    return 'text-grey-darken-3'; // Cor escura para fundo claro
+  }
+  return 'text-white'; // Cor branca para outros fundos
 };
 const getPriceColorClass = (slot) => {
   const bgColor = getSlotColor(slot);
