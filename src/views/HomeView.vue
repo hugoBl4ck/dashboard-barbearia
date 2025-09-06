@@ -317,7 +317,7 @@ const getChipIcon = (status) => {
 const getTextColorClass = (slot) => {
   // Se o slot for um agendamento (fundo azul), o texto deve ser branco.
   if (slot.tipo === 'agendamento') {
-    return 'text-white';
+    return 'text-black';
   }
   // Se o slot já passou (fundo cinza claro), o texto deve ser um cinza mais escuro para contraste.
   if (slot.tipo === 'passado') {
