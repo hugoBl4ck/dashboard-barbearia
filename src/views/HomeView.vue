@@ -243,10 +243,10 @@ const fetchConfigHorarios = async (data) => {
   const docSnap = await getDoc(docRef);
   configHorarios.value = (docSnap.exists() && docSnap.data().InicioManha) ? docSnap.data() : null;
 };
-watch(dataExibida, async (novaData) => {
-  loading.value = true;
-  await fetchConfigHorarios(novaData);
-  loading.value = false;
+watch(dataExibida, (novaData) => {
+  // Apenas busca a configuração do dia. Os agendamentos já estão em 'allAppointments'.
+  // 'todayAppointments' será recalculado automaticamente.
+  fetchConfigHorarios(novaData);
 });
 onMounted(() => { fetchData(); });
 const mudarDia = (dias) => { const novaData = new Date(dataExibida.value); novaData.setDate(novaData.getDate() + dias); dataExibida.value = novaData; };
