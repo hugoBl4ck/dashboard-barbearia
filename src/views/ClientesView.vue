@@ -51,12 +51,20 @@
                       class="expanded-item"
                     >
                       <v-list-item-title class="d-flex align-center">
-                        <v-chip size="small" class="mr-4">{{ agendamento.DataHoraFormatada.split(' ')[0] }}</v-chip>
-                        <div>
-                          <div>{{ agendamento.servicoNome }}</div>
-                          <div class="text-caption text-medium-emphasis">Status: {{ agendamento.Status }}</div>
-                        </div>
-                      </v-list-item-title>
+                          <v-chip size="small" class="mr-4">{{ agendamento.DataHoraFormatada.split(' ')[0] }}</v-chip>
+                          <div>
+                            <div>{{ agendamento.servicoNome }}</div>
+                            <!-- CHIP DE STATUS VISUAL -->
+                            <v-chip
+                              :color="getStatusColor(agendamento.Status)"
+                              size="x-small"
+                              class="mt-1"
+                              label
+                            >
+                              {{ agendamento.Status }}
+                            </v-chip>
+                          </div>
+                        </v-list-item-title>
                       
                       <template v-slot:append>
                         <div class="d-flex align-center">
@@ -201,5 +209,11 @@ const salvarPreco = async (agendamento) => {
     // Reverte a mudança visual em caso de erro
     agendamento.precoEditavel = agendamento.preco;
   }
+};
+const getStatusColor = (status) => {
+  if (status === 'Agendado') return 'blue';
+  if (status === 'Concluído') return 'success';
+  if (status === 'Cancelado') return 'red';
+  return 'grey';
 };
 </script>
