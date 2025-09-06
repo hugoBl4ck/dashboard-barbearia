@@ -76,7 +76,7 @@
               :disabled="slot.tipo === 'passado' || slot.tipo === 'ocupado-meio'">
               <v-card-text class="pa-3 text-center">
                 <div class="font-weight-bold mb-1" :class="getTextColorClass(slot)">{{ slot.horarioFormatado }}</div>
-                <v-chip size="small" :color="getChipColor(slot.status)" class="mb-1">
+                <v-chip size="small" :color="getChipColor(slot.status)" class="mb-1" text-color="white">
                   <v-icon start size="16">{{ getChipIcon(slot.status) }}</v-icon>
                   {{ slot.titulo }}
                 </v-chip>
