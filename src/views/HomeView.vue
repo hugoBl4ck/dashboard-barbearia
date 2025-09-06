@@ -73,15 +73,15 @@
               :variant="getSlotVariant(slot)"
               :color="getSlotColor(slot)" 
               @click="handleItemClick(slot)" 
-              :disabled="slot.tipo === 'passado' || slot.tipo === 'ocupado-meio'">
+              :disabled="slot.tipo === 'passado'">
               <v-card-text class="pa-3 text-center">
                 <div class="font-weight-bold mb-1" :class="getTimeTextColor(slot)">{{ slot.horarioFormatado }}</div>
                 <v-chip size="small" :color="getChipColor(slot.status)" class="mb-1">
                   <v-icon start size="16" :color="getChipIconColor(slot.status)">{{ getChipIcon(slot.status) }}</v-icon>
                   <span :class="getChipTextColor(slot.status)">{{ slot.titulo }}</span>
                 </v-chip>
-                <div class="text-caption truncate-text mb-1" :class="getDetailsTextColor(slot)" v-if="slot.tipo === 'agendamento'">{{ slot.detalhes }}</div>
-                <div class="text-caption font-weight-bold" :class="getPriceTextColor(slot)" v-if="slot.tipo === 'agendamento' && slot.preco">
+                <div class="text-caption truncate-text mb-1" :class="getDetailsTextColor(slot)" v-if="slot.tipo === 'agendamento' || slot.tipo === 'cancelado'">{{ slot.detalhes }}</div>
+                <div class="text-caption font-weight-bold" :class="getPriceTextColor(slot)" v-if="(slot.tipo === 'agendamento' || slot.tipo === 'cancelado') && slot.preco">
                   {{ (slot.preco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}
                 </div>
               </v-card-text>
@@ -185,7 +185,7 @@ const todayAppointments = computed(() => {
   const selectedDateStr = dataExibida.value.toISOString().split('T')[0];
   return allAppointments.value.filter(apt => new Date(apt.DataHoraISO).toISOString().split('T')[0] === selectedDateStr);
 });
-const totalRevenue = computed(() => todayAppointments.value.reduce((sum, apt) => sum + (apt.preco || 0), 0));
+const totalRevenue = computed(() => todayAppointments.value.filter(apt => apt.Status === 'Agendado').reduce((sum, apt) => sum + (apt.preco || 0), 0));
 const proximoAgendamento = computed(() => {
   const agora = new Date();
   const proximo = todayAppointments.value.filter(a => new Date(a.DataHoraISO) > agora && a.Status === 'Agendado').sort((a, b) => new Date(a.DataHoraISO) - new Date(b.DataHoraISO))[0];
@@ -213,12 +213,30 @@ const agendaDoDia = computed(() => {
         dataSlot.setHours(Math.floor(minuto/60), minuto%60, 0, 0);
         const agendamento = agendamentosMap.get(minuto);
         const estaNoPassado = dataSlot < new Date() && dataExibida.value.toDateString() === new Date().toDateString();
-        const status = agendamento ? (estaNoPassado ? 'passado' : 'agendamento') : (estaNoPassado ? 'passado' : 'livre');
+        
+        let status, titulo;
+        
+        if (agendamento) {
+          if (agendamento.Status === 'Cancelado') {
+            status = 'cancelado';
+            titulo = `${agendamento.NomeCliente} (Cancelado)`;
+          } else if (estaNoPassado) {
+            status = 'passado';
+            titulo = agendamento.NomeCliente;
+          } else {
+            status = 'agendamento';
+            titulo = agendamento.NomeCliente;
+          }
+        } else {
+          status = estaNoPassado ? 'passado' : 'livre';
+          titulo = estaNoPassado ? 'Encerrado' : 'Disponível';
+        }
+        
         agenda.push({
             tipo: status, status: status, 
             ...(agendamento && { ...agendamento }),
             horarioFormatado: formatTime(minuto),
-            titulo: agendamento ? agendamento.NomeCliente : (estaNoPassado ? 'Encerrado' : 'Disponível'),
+            titulo: titulo,
             detalhes: agendamento ? agendamento.servicoNome : '',
             timestamp: dataSlot.getTime()
         });
@@ -229,6 +247,7 @@ const agendaDoDia = computed(() => {
 const fetchData = async () => {
   loading.value = true;
   try {
+    // Buscar todos os agendamentos (incluindo cancelados)
     const agendamentosQuery = query(collection(db, "Agendamentos"));
     const servicosQuery = query(collection(db, "Servicos"), where("ativo", "==", true));
     const [agendamentosSnapshot, servicosSnapshot] = await Promise.all([ getDocs(agendamentosQuery), getDocs(servicosQuery) ]);
@@ -261,15 +280,35 @@ const fecharModal = () => {
 
 const handleItemClick = (item) => {
     if (item.tipo === 'passado') return;
+    
     horarioModal.value = item.horarioFormatado;
     timestampModal.value = item.timestamp;
+    
     if (item.tipo === 'agendamento') {
-        editando.value = true; idAgendamentoEditando.value = item.id; nomeCliente.value = item.NomeCliente; telefoneCliente.value = item.TelefoneCliente;
+        editando.value = true; 
+        idAgendamentoEditando.value = item.id; 
+        nomeCliente.value = item.NomeCliente; 
+        telefoneCliente.value = item.TelefoneCliente;
         servicoSelecionado.value = listaServicos.value.find(s => s.id === item.servicoId) || null;
         precoServico.value = item.preco || servicoSelecionado.value?.preco || 0;
+    } else if (item.tipo === 'cancelado') {
+        // Tratar cancelados como horários disponíveis para novo agendamento
+        editando.value = false; 
+        idAgendamentoEditando.value = null; 
+        nomeCliente.value = ''; 
+        telefoneCliente.value = ''; 
+        servicoSelecionado.value = null; 
+        precoServico.value = 0;
     } else {
-        editando.value = false; idAgendamentoEditando.value = null; nomeCliente.value = ''; telefoneCliente.value = ''; servicoSelecionado.value = null; precoServico.value = 0;
+        // Slot livre
+        editando.value = false; 
+        idAgendamentoEditando.value = null; 
+        nomeCliente.value = ''; 
+        telefoneCliente.value = ''; 
+        servicoSelecionado.value = null; 
+        precoServico.value = 0;
     }
+    
     modalAberto.value = true;
 };
 
@@ -280,7 +319,7 @@ watch(servicoSelecionado, (novoServico) => {
 });
 
 const abrirModalParaNovoVazio = () => {
-    const primeiroSlotLivre = agendaDoDia.value.find(item => item.tipo === 'livre');
+    const primeiroSlotLivre = agendaDoDia.value.find(item => item.tipo === 'livre' || item.tipo === 'cancelado');
     if (primeiroSlotLivre) handleItemClick(primeiroSlotLivre); else alert("Não há horários vagos hoje.");
 };
 
@@ -308,11 +347,11 @@ const excluirAgendamento = async () => {
     finally { fecharModal(); fetchData(); }
 };
 
-// SISTEMA DE CORES REORGANIZADO
+// SISTEMA DE CORES REORGANIZADO COM SUPORTE A CANCELADO
 
 // Variante do card (flat/outlined)
 const getSlotVariant = (slot) => {
-  return slot.tipo === 'livre' ? 'outlined' : 'flat';
+  return (slot.tipo === 'livre' || slot.tipo === 'cancelado') ? 'outlined' : 'flat';
 };
 
 // Cor de fundo do card
@@ -320,6 +359,7 @@ const getSlotColor = (slot) => {
   switch (slot.tipo) {
     case 'agendamento': return 'primary';
     case 'passado': return 'grey-lighten-3';
+    case 'cancelado': return 'orange-lighten-4';
     case 'livre': return 'surface';
     default: return 'surface';
   }
@@ -330,6 +370,7 @@ const getTimeTextColor = (slot) => {
   switch (slot.tipo) {
     case 'agendamento': return 'text-white';
     case 'passado': return 'text-grey-darken-2';
+    case 'cancelado': return 'text-orange-darken-2';
     case 'livre': return 'text-primary';
     default: return '';
   }
@@ -341,6 +382,7 @@ const getChipColor = (status) => {
     case 'agendamento': return 'white';
     case 'livre': return 'success';
     case 'passado': return 'grey-darken-1';
+    case 'cancelado': return 'orange';
     default: return 'grey';
   }
 };
@@ -351,6 +393,7 @@ const getChipIconColor = (status) => {
     case 'agendamento': return 'primary';
     case 'livre': return 'white';
     case 'passado': return 'white';
+    case 'cancelado': return 'white';
     default: return 'white';
   }
 };
@@ -361,6 +404,7 @@ const getChipTextColor = (status) => {
     case 'agendamento': return 'text-primary';
     case 'livre': return 'text-white';
     case 'passado': return 'text-white';
+    case 'cancelado': return 'text-white';
     default: return 'text-white';
   }
 };
@@ -371,6 +415,7 @@ const getChipIcon = (status) => {
     case 'agendamento': return 'mdi-account-check';
     case 'livre': return 'mdi-plus-box-outline';
     case 'passado': return 'mdi-check-circle';
+    case 'cancelado': return 'mdi-cancel';
     default: return 'mdi-help-circle';
   }
 };
@@ -380,6 +425,7 @@ const getDetailsTextColor = (slot) => {
   switch (slot.tipo) {
     case 'agendamento': return 'text-white';
     case 'passado': return 'text-grey-darken-2';
+    case 'cancelado': return 'text-orange-darken-2';
     default: return '';
   }
 };
@@ -389,6 +435,7 @@ const getPriceTextColor = (slot) => {
   switch (slot.tipo) {
     case 'agendamento': return 'text-green-lighten-2';
     case 'passado': return 'text-green-darken-2';
+    case 'cancelado': return 'text-orange-darken-1';
     default: return 'text-green';
   }
 };
