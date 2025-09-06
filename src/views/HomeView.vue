@@ -315,11 +315,17 @@ const getChipIcon = (status) => {
   return 'mdi-help-circle';
 };
 const getTextColorClass = (slot) => {
-  const bgColor = getSlotColor(slot);
-  if (bgColor === 'grey-lighten-2') {
-    return 'text-grey-darken-3'; // Cor escura para fundo claro
+  // Se o slot for um agendamento (fundo azul), o texto deve ser branco.
+  if (slot.tipo === 'agendamento') {
+    return 'text-white';
   }
-  return 'text-white'; // Cor branca para outros fundos
+  // Se o slot já passou (fundo cinza claro), o texto deve ser um cinza mais escuro para contraste.
+  if (slot.tipo === 'passado') {
+    return 'text-grey-darken-1';
+  }
+  // Para slots livres (fundo padrão), não precisa de classe especial,
+  // ele usará a cor de texto padrão do tema.
+  return ''; 
 };
 const getPriceColorClass = (slot) => {
   const bgColor = getSlotColor(slot);
