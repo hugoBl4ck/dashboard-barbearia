@@ -70,18 +70,18 @@
           <v-col v-for="slot in agendaDoDia" :key="slot.timestamp" cols="12" sm="6" md="4" lg="3">
             <v-card 
               class="slot-card" 
-              :variant="slot.tipo === 'livre' ? 'outlined' : 'flat'" 
+              :variant="getSlotVariant(slot)"
               :color="getSlotColor(slot)" 
               @click="handleItemClick(slot)" 
               :disabled="slot.tipo === 'passado' || slot.tipo === 'ocupado-meio'">
               <v-card-text class="pa-3 text-center">
-                <div class="font-weight-bold mb-1" :class="getTextColorClass(slot)">{{ slot.horarioFormatado }}</div>
-                <v-chip size="small" :color="getChipColor(slot.status)" class="mb-1" text-color="white">
-                  <v-icon start size="16">{{ getChipIcon(slot.status) }}</v-icon>
-                  {{ slot.titulo }}
+                <div class="font-weight-bold mb-1" :class="getTimeTextColor(slot)">{{ slot.horarioFormatado }}</div>
+                <v-chip size="small" :color="getChipColor(slot.status)" class="mb-1">
+                  <v-icon start size="16" :color="getChipIconColor(slot.status)">{{ getChipIcon(slot.status) }}</v-icon>
+                  <span :class="getChipTextColor(slot.status)">{{ slot.titulo }}</span>
                 </v-chip>
-                <div class="text-caption truncate-text" :class="getTextColorClass(slot)" v-if="slot.tipo === 'agendamento'">{{ slot.detalhes }}</div>
-                <div class="text-caption font-weight-bold" :class="getPriceColorClass(slot)" v-if="slot.tipo === 'agendamento' && slot.preco">
+                <div class="text-caption truncate-text mb-1" :class="getDetailsTextColor(slot)" v-if="slot.tipo === 'agendamento'">{{ slot.detalhes }}</div>
+                <div class="text-caption font-weight-bold" :class="getPriceTextColor(slot)" v-if="slot.tipo === 'agendamento' && slot.preco">
                   {{ (slot.preco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}
                 </div>
               </v-card-text>
@@ -225,6 +225,7 @@ const agendaDoDia = computed(() => {
     }
     return agenda;
 });
+
 const fetchData = async () => {
   loading.value = true;
   try {
@@ -237,23 +238,27 @@ const fetchData = async () => {
   } catch (error) { console.error("Erro ao buscar dados:", error); } 
   finally { loading.value = false; }
 };
+
 const fetchConfigHorarios = async (data) => {
   const diaDaSemana = data.getDay();
   const docRef = doc(db, 'Horarios', String(diaDaSemana));
   const docSnap = await getDoc(docRef);
   configHorarios.value = (docSnap.exists() && docSnap.data().InicioManha) ? docSnap.data() : null;
 };
+
 watch(dataExibida, (novaData) => {
-  // Apenas busca a configuração do dia. Os agendamentos já estão em 'allAppointments'.
-  // 'todayAppointments' será recalculado automaticamente.
   fetchConfigHorarios(novaData);
 });
+
 onMounted(() => { fetchData(); });
+
 const mudarDia = (dias) => { const novaData = new Date(dataExibida.value); novaData.setDate(novaData.getDate() + dias); dataExibida.value = novaData; };
 const irParaHoje = () => { dataExibida.value = new Date(); };
+
 const fecharModal = () => {
     modalAberto.value = false; editando.value = false; idAgendamentoEditando.value = null; nomeCliente.value = ''; telefoneCliente.value = ''; servicoSelecionado.value = null; horarioModal.value = ''; timestampModal.value = null; precoServico.value = 0;
 };
+
 const handleItemClick = (item) => {
     if (item.tipo === 'passado') return;
     horarioModal.value = item.horarioFormatado;
@@ -267,15 +272,18 @@ const handleItemClick = (item) => {
     }
     modalAberto.value = true;
 };
+
 watch(servicoSelecionado, (novoServico) => {
   if (!editando.value && novoServico) {
     precoServico.value = novoServico.preco || 0;
   }
 });
+
 const abrirModalParaNovoVazio = () => {
     const primeiroSlotLivre = agendaDoDia.value.find(item => item.tipo === 'livre');
     if (primeiroSlotLivre) handleItemClick(primeiroSlotLivre); else alert("Não há horários vagos hoje.");
 };
+
 const salvarAgendamento = async () => {
     if (!nomeCliente.value || !servicoSelecionado.value) return alert('Nome e serviço são obrigatórios.');
     try {
@@ -293,44 +301,98 @@ const salvarAgendamento = async () => {
     } catch (error) { console.error("Erro ao salvar:", error); alert("Ocorreu um erro ao salvar."); }
     finally { fecharModal(); fetchData(); }
 };
+
 const excluirAgendamento = async () => {
     if (!idAgendamentoEditando.value || !confirm(`Excluir agendamento de ${nomeCliente.value}?`)) return;
     try { await deleteDoc(doc(db, 'Agendamentos', idAgendamentoEditando.value)); }
     finally { fecharModal(); fetchData(); }
 };
+
+// SISTEMA DE CORES REORGANIZADO
+
+// Variante do card (flat/outlined)
+const getSlotVariant = (slot) => {
+  return slot.tipo === 'livre' ? 'outlined' : 'flat';
+};
+
+// Cor de fundo do card
 const getSlotColor = (slot) => {
-  if (slot.status === 'agendamento') return 'primary';
-  if (slot.status === 'passado') return 'grey-lighten-2';
-  return undefined;
+  switch (slot.tipo) {
+    case 'agendamento': return 'primary';
+    case 'passado': return 'grey-lighten-3';
+    case 'livre': return 'surface';
+    default: return 'surface';
+  }
 };
+
+// Cor do texto do horário
+const getTimeTextColor = (slot) => {
+  switch (slot.tipo) {
+    case 'agendamento': return 'text-white';
+    case 'passado': return 'text-grey-darken-2';
+    case 'livre': return 'text-primary';
+    default: return '';
+  }
+};
+
+// Cor de fundo do chip
 const getChipColor = (status) => {
-  if (status === 'agendamento') return 'primary';
-  if (status === 'livre') return 'success';
-  return 'grey';
+  switch (status) {
+    case 'agendamento': return 'white';
+    case 'livre': return 'success';
+    case 'passado': return 'grey-darken-1';
+    default: return 'grey';
+  }
 };
+
+// Cor do ícone do chip
+const getChipIconColor = (status) => {
+  switch (status) {
+    case 'agendamento': return 'primary';
+    case 'livre': return 'white';
+    case 'passado': return 'white';
+    default: return 'white';
+  }
+};
+
+// Cor do texto do chip (nome do cliente)
+const getChipTextColor = (status) => {
+  switch (status) {
+    case 'agendamento': return 'text-primary';
+    case 'livre': return 'text-white';
+    case 'passado': return 'text-white';
+    default: return 'text-white';
+  }
+};
+
+// Ícone do chip
 const getChipIcon = (status) => {
-  if (status === 'agendamento') return 'mdi-account-check';
-  if (status === 'livre') return 'mdi-plus-box-outline';
-  if (status === 'passado') return 'mdi-check-circle';
-  return 'mdi-help-circle';
-};
-const getTextColorClass = (slot) => {
-  // Se o slot for um agendamento (fundo azul), o texto deve ser branco.
-  if (slot.tipo === 'agendamento') {
-    return 'text-black';
+  switch (status) {
+    case 'agendamento': return 'mdi-account-check';
+    case 'livre': return 'mdi-plus-box-outline';
+    case 'passado': return 'mdi-check-circle';
+    default: return 'mdi-help-circle';
   }
-  // Se o slot já passou (fundo cinza claro), o texto deve ser um cinza mais escuro para contraste.
-  if (slot.tipo === 'passado') {
-    return 'text-grey-darken-1';
+};
+
+// Cor do texto dos detalhes (serviço)
+const getDetailsTextColor = (slot) => {
+  switch (slot.tipo) {
+    case 'agendamento': return 'text-white';
+    case 'passado': return 'text-grey-darken-2';
+    default: return '';
   }
-  // Para slots livres (fundo padrão), não precisa de classe especial,
-  // ele usará a cor de texto padrão do tema.
-  return ''; 
 };
-const getPriceColorClass = (slot) => {
-  const bgColor = getSlotColor(slot);
-  return ['grey-lighten-2'].includes(bgColor) ? 'text-green-darken-2' : 'text-green-lighten-2';
+
+// Cor do texto do preço
+const getPriceTextColor = (slot) => {
+  switch (slot.tipo) {
+    case 'agendamento': return 'text-green-lighten-2';
+    case 'passado': return 'text-green-darken-2';
+    default: return 'text-green';
+  }
 };
+
 const toggleChatPanel = () => { showChatPanel.value = !showChatPanel.value; };
 const onChatOpen = () => { notificationMessage.value = 'Assistente virtual iniciado! 🤖'; showNotification.value = true; };
 </script>
