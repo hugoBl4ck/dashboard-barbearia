@@ -327,18 +327,67 @@ const salvarAgendamento = async () => {
     if (!nomeCliente.value || !servicoSelecionado.value) return alert('Nome e serviço são obrigatórios.');
     try {
         if (editando.value && idAgendamentoEditando.value) {
-            await updateDoc(doc(db, 'Agendamentos', idAgendamentoEditando.value), { NomeCliente: nomeCliente.value, TelefoneCliente: telefoneCliente.value, preco: precoServico.value });
+            await updateDoc(doc(db, 'Agendamentos', idAgendamentoEditando.value), { 
+                NomeCliente: nomeCliente.value, 
+                TelefoneCliente: telefoneCliente.value, 
+                preco: precoServico.value 
+            });
         } else {
             const dataDoAgendamento = new Date(timestampModal.value);
-            await addDoc(collection(db, 'Agendamentos'), {
-                NomeCliente: nomeCliente.value, TelefoneCliente: telefoneCliente.value, DataHoraISO: dataDoAgendamento.toISOString(),
-                DataHoraFormatada: new Intl.DateTimeFormat('pt-BR', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Sao_Paulo' }).format(dataDoAgendamento),
-                Status: 'Agendado', TimestampAgendamento: new Date().toISOString(),
-                servicoId: servicoSelecionado.value.id, servicoNome: servicoSelecionado.value.nome, preco: precoServico.value, duracaoMinutos: servicoSelecionado.value.duracaoMinutos,
+            
+            // NOVA LÓGICA: Verificar se existe agendamento cancelado no mesmo horário
+            const horarioAlvo = dataDoAgendamento.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const agendamentoCancelado = todayAppointments.value.find(apt => {
+                const horarioApt = new Date(apt.DataHoraISO).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                return horarioApt === horarioAlvo && apt.Status === 'Cancelado';
             });
+            
+            if (agendamentoCancelado) {
+                // Atualizar o agendamento cancelado existente
+                await updateDoc(doc(db, 'Agendamentos', agendamentoCancelado.id), {
+                    NomeCliente: nomeCliente.value, 
+                    TelefoneCliente: telefoneCliente.value, 
+                    DataHoraISO: dataDoAgendamento.toISOString(),
+                    DataHoraFormatada: new Intl.DateTimeFormat('pt-BR', { 
+                        dateStyle: 'medium', 
+                        timeStyle: 'short', 
+                        timeZone: 'America/Sao_Paulo' 
+                    }).format(dataDoAgendamento),
+                    Status: 'Agendado', 
+                    TimestampAgendamento: new Date().toISOString(),
+                    servicoId: servicoSelecionado.value.id, 
+                    servicoNome: servicoSelecionado.value.nome, 
+                    preco: precoServico.value, 
+                    duracaoMinutos: servicoSelecionado.value.duracaoMinutos,
+                });
+            } else {
+                // Criar novo agendamento (lógica original)
+                await addDoc(collection(db, 'Agendamentos'), {
+                    NomeCliente: nomeCliente.value, 
+                    TelefoneCliente: telefoneCliente.value, 
+                    DataHoraISO: dataDoAgendamento.toISOString(),
+                    DataHoraFormatada: new Intl.DateTimeFormat('pt-BR', { 
+                        dateStyle: 'medium', 
+                        timeStyle: 'short', 
+                        timeZone: 'America/Sao_Paulo' 
+                    }).format(dataDoAgendamento),
+                    Status: 'Agendado', 
+                    TimestampAgendamento: new Date().toISOString(),
+                    servicoId: servicoSelecionado.value.id, 
+                    servicoNome: servicoSelecionado.value.nome, 
+                    preco: precoServico.value, 
+                    duracaoMinutos: servicoSelecionado.value.duracaoMinutos,
+                });
+            }
         }
-    } catch (error) { console.error("Erro ao salvar:", error); alert("Ocorreu um erro ao salvar."); }
-    finally { fecharModal(); fetchData(); }
+    } catch (error) { 
+        console.error("Erro ao salvar:", error); 
+        alert("Ocorreu um erro ao salvar."); 
+    }
+    finally { 
+        fecharModal(); 
+        fetchData(); 
+    }
 };
 
 const excluirAgendamento = async () => {
