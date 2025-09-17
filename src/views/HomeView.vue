@@ -367,7 +367,7 @@
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
 import { useAuth } from '@/composables/useAuth'
-import { useTenant } from '@/composables/usetenant'
+import { useTenant } from '@/composables/useTenant'
 
 // Composables
 const { user, barbeariaInfo, barbeariaId, logout } = useAuth()
