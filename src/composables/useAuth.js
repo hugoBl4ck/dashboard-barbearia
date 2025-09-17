@@ -33,12 +33,17 @@ onAuthStateChanged(auth, async (firebaseUser) => {
     if (userDoc.exists()) {
       const uData = userDoc.data();
       userData.value = uData;
+      // GARANTIR que barbeariaInfo seja carregado ANTES de finalizar o loading
       if (uData.barbeariaId) {
         const barbeariaDoc = await getDoc(doc(db, 'barbearias', uData.barbeariaId));
         if (barbeariaDoc.exists()) {
           barbeariaInfo.value = { id: barbeariaDoc.id, ...barbeariaDoc.data() };
         }
       }
+    } else {
+      // Se o usuário do Firebase existe mas não está no Firestore, limpa os dados locais
+      userData.value = null;
+      barbeariaInfo.value = null;
     }
     user.value = firebaseUser;
   } else {
