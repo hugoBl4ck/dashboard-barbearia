@@ -32,7 +32,7 @@ const router = createRouter({
       path: '/agendar',
       name: 'agendar',
       component: ClientLandingPageView
-    },
+    }
   ]
 })
 
