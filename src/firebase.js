@@ -1,10 +1,9 @@
-// ARQUIVO: src/firebase.js (VERSÃO FINAL E SEGURA)
+// ARQUIVO: src/firebase.js (VERSÃO CORRIGIDA E COMPLETA)
 
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth"; // Importa o serviço de autenticação
+import { getAuth } from "firebase/auth"; // 1. Importa a função de autenticação
 
-// Monta o objeto de configuração a partir de variáveis de ambiente individuais
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -14,15 +13,12 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-// Validação para garantir que as variáveis foram carregadas
-if (!firebaseConfig.apiKey) {
-  throw new Error("Variáveis de ambiente do Firebase não foram carregadas corretamente. Verifique sua configuração no Vercel e o prefixo VITE_.");
-}
-
-// Inicializa o Firebase
+// Inicializa o app Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-const auth = getAuth(app); // Inicializa o serviço de autenticação
 
-// Exporta os serviços para serem usados em outros arquivos
-export { app, db, auth };
+// Obtém referências para os serviços
+const db = getFirestore(app);
+const auth = getAuth(app); // 2. Cria a instância do serviço de autenticação
+
+// Exporta ambos para serem usados em outros lugares
+export { db, auth }; // 3. Exporta tanto o 'db' quanto o 'auth'
