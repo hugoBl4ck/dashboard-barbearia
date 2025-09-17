@@ -12,7 +12,7 @@ import '@fontsource/poppins/600.css'
 import '@fontsource/poppins/700.css'
 
 // CSS global adicional se necessário
-import './assets/global.css' // Opcional - para estilos adicionais
+import './assets/main.css' // Opcional - para estilos adicionais
 
 const app = createApp(App)
 
