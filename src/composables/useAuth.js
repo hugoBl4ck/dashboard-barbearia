@@ -25,15 +25,19 @@ const loading = ref(true);
 // Configura o listener que atualiza o estado acima
 const auth = getAuth();
 onAuthStateChanged(auth, async (firebaseUser) => {
+  // Define loading como true no início do processo de verificação
+  loading.value = true;
   if (firebaseUser) {
     const userDocRef = doc(db, 'usuarios', firebaseUser.uid);
     const userDoc = await getDoc(userDocRef);
     if (userDoc.exists()) {
       const uData = userDoc.data();
       userData.value = uData;
-      const barbeariaDoc = await getDoc(doc(db, 'barbearias', uData.barbeariaId));
-      if (barbeariaDoc.exists()) {
-        barbeariaInfo.value = { id: barbeariaDoc.id, ...barbeariaDoc.data() };
+      if (uData.barbeariaId) {
+        const barbeariaDoc = await getDoc(doc(db, 'barbearias', uData.barbeariaId));
+        if (barbeariaDoc.exists()) {
+          barbeariaInfo.value = { id: barbeariaDoc.id, ...barbeariaDoc.data() };
+        }
       }
     }
     user.value = firebaseUser;
