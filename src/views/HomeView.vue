@@ -647,12 +647,19 @@ const salvarAgendamento = async () => {
   try {
     if (editando.value && idAgendamentoEditando.value) {
       // Atualizar agendamento existente
-      await updateAgendamento(idAgendamentoEditando.value, {
+      const agendamentoAtualizado = await updateAgendamento(idAgendamentoEditando.value, {
         NomeCliente: nomeCliente.value,
         TelefoneCliente: telefoneCliente.value,
         preco: precoServico.value
-      })
-      showAlertMessage('Agendamento atualizado com sucesso!')
+      });
+      // Atualiza o item no array local de forma reativa
+      const index = allAppointments.value.findIndex(a => a.id === idAgendamentoEditando.value);
+      if (index !== -1) {
+        // Usar spread para garantir que a reatividade seja acionada
+        allAppointments.value[index] = { ...allAppointments.value[index], ...agendamentoAtualizado };
+      }
+      showAlertMessage('Agendamento atualizado com sucesso!');
+
     } else {
       // Criar novo agendamento
       const dataDoAgendamento = new Date(timestampModal.value)
@@ -672,7 +679,7 @@ const salvarAgendamento = async () => {
       
       if (agendamentoCancelado) {
         // Atualizar agendamento cancelado
-        await updateAgendamento(agendamentoCancelado.id, {
+        const agendamentoReativado = await updateAgendamento(agendamentoCancelado.id, {
           NomeCliente: nomeCliente.value,
           TelefoneCliente: telefoneCliente.value,
           DataHoraISO: dataDoAgendamento.toISOString(),
@@ -683,10 +690,15 @@ const salvarAgendamento = async () => {
           servicoNome: servicoSelecionado.value.nome,
           preco: precoServico.value,
           duracaoMinutos: servicoSelecionado.value.duracaoMinutos || 30
-        })
+        });
+        // Atualiza o item no array local de forma reativa
+        const index = allAppointments.value.findIndex(a => a.id === agendamentoCancelado.id);
+        if (index !== -1) {
+          allAppointments.value[index] = agendamentoReativado;
+        }
       } else {
         // Criar novo agendamento
-        await createAgendamento({
+        const novoAgendamento = await createAgendamento({
           NomeCliente: nomeCliente.value,
           TelefoneCliente: telefoneCliente.value,
           DataHoraISO: dataDoAgendamento.toISOString(),
@@ -697,17 +709,19 @@ const salvarAgendamento = async () => {
           servicoNome: servicoSelecionado.value.nome,
           preco: precoServico.value,
           duracaoMinutos: servicoSelecionado.value.duracaoMinutos || 30
-        })
+        });
+        // Adiciona o novo item no array local de forma reativa
+        allAppointments.value.push(novoAgendamento);
       }
       showAlertMessage('Agendamento criado com sucesso!')
     }
   } catch (error) {
     console.error("Erro ao salvar:", error)
-    showAlertMessage('Erro ao salvar agendamento', 'error')
+    showAlertMessage('Erro ao salvar agendamento', 'error');
   } finally {
-    savingLoading.value = false
-    fecharModal()
-    fetchData()
+    savingLoading.value = false;
+    fecharModal();
+    // A chamada para fetchData() não é mais necessária aqui!
   }
 }
 
@@ -719,15 +733,17 @@ const excluirAgendamento = async () => {
   deletingLoading.value = true
   
   try {
-    await deleteAgendamento(idAgendamentoEditando.value)
-    showAlertMessage('Agendamento excluído com sucesso!')
+    await deleteAgendamento(idAgendamentoEditando.value);
+    // Remove o item do array local de forma reativa
+    allAppointments.value = allAppointments.value.filter(a => a.id !== idAgendamentoEditando.value);
+    showAlertMessage('Agendamento excluído com sucesso!');
   } catch (error) {
-    console.error("Erro ao excluir:", error)
-    showAlertMessage('Erro ao excluir agendamento', 'error')
+    console.error("Erro ao excluir:", error);
+    showAlertMessage('Erro ao excluir agendamento', 'error');
   } finally {
-    deletingLoading.value = false
-    fecharModal()
-    fetchData()
+    deletingLoading.value = false;
+    fecharModal();
+    // A chamada para fetchData() não é mais necessária aqui!
   }
 }
 

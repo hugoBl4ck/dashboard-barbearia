@@ -65,8 +65,10 @@ export const useTenant = () => {
       ...dadosAgendamento,
       criadoEm: new Date().toISOString(),
       atualizadoEm: new Date().toISOString()
-    })
-    return docRef.id
+    });
+    // Retorna o documento recém-criado para atualização reativa na UI
+    const newDoc = await getDoc(docRef);
+    return { id: newDoc.id, ...newDoc.data() };
   }
 
   const updateAgendamento = async (agendamentoId, dadosAtualizacao) => {
@@ -74,7 +76,10 @@ export const useTenant = () => {
     await updateDoc(docRef, {
       ...dadosAtualizacao,
       atualizadoEm: new Date().toISOString()
-    })
+    });
+    // Retorna o documento atualizado para atualização reativa na UI
+    const updatedDoc = await getDoc(docRef);
+    return { id: updatedDoc.id, ...updatedDoc.data() };
   }
 
   const deleteAgendamento = async (agendamentoId) => {

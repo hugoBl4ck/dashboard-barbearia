@@ -140,7 +140,7 @@ async function createNewBarbearia(nomeBarbearia) {
 async function checkAndCreateUser(firebaseUser, nomeBarbearia = 'Nova Barbearia') {
     const userDocRef = doc(db, 'usuarios', firebaseUser.uid);
     const userDoc = await getDoc(userDocRef);
-    if (!userDoc.exists()) {
+    if (!userDoc.exists()) { // Só executa se o usuário for novo no Firestore
       const usuariosQuery = query(collection(db, 'usuarios'));
       const usuariosSnapshot = await getDocs(usuariosQuery);
       let targetBarbeariaId;
