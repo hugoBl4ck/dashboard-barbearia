@@ -137,21 +137,20 @@ async function createNewBarbearia(nomeBarbearia) {
 
 async function checkAndCreateUser(firebaseUser) {
     const userDocRef = doc(db, 'usuarios', firebaseUser.uid);    
-    const usuariosQuery = query(collection(db, 'usuarios'));
-    const usuariosSnapshot = await getDocs(usuariosQuery);
     let targetBarbeariaId;
 
-    if (usuariosSnapshot.empty) {
+    // Tenta ler a "Barbearia 01" para ver se o sistema já foi inicializado.
+    const barbeariaPrincipalRef = doc(db, 'barbearias', '01');
+    const barbeariaPrincipalSnap = await getDoc(barbeariaPrincipalRef);
+
+    if (!barbeariaPrincipalSnap.exists()) {
+      // Se a barbearia '01' NÃO existe, este é o primeiro usuário.
+      // Criamos a barbearia '01' e associamos este usuário a ela.
       targetBarbeariaId = '01';
-      const barbeariaRef = doc(db, 'barbearias', targetBarbeariaId);
-      const barbeariaSnap = await getDoc(barbeariaRef);
-      if (!barbeariaSnap.exists()) {
-        await setDoc(barbeariaRef, { nome: 'Barbearia Principal (Migrada)', criadoEm: new Date() });
-      }
+      await setDoc(barbeariaPrincipalRef, { nome: 'Barbearia Principal', criadoEm: new Date() });
     } else {
-      // Para novos usuários, o nome da barbearia virá do formulário de cadastro, mas aqui não temos acesso.
-      // Uma melhoria futura seria ter um fluxo de "onboarding" após o cadastro.
-      // Por agora, criamos com um nome padrão.
+      // Se a barbearia '01' JÁ existe, este não é o primeiro usuário.
+      // Criamos uma nova barbearia para ele.
       targetBarbeariaId = await createNewBarbearia('Nova Barbearia');
     }
     const newUserDocData = {
