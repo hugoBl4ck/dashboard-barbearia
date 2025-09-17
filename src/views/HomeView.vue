@@ -158,7 +158,11 @@
 
     <v-main>
       <!-- CONTEÚDO BASEADO NA ROTA ATUAL -->
-      <div v-if="currentRoute === 'dashboard'">
+      <!-- Adicionamos um v-if aqui para garantir que tudo de useAuth esteja carregado antes de renderizar -->
+      <div v-if="loading" class="d-flex justify-center align-center fill-height">
+        <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
+      </div>
+      <div v-else-if="currentRoute === 'dashboard' && user && barbeariaInfo">
         <v-container fluid class="pa-6 page-container">
           <!-- NAVEGAÇÃO DE DATA -->
           <v-card flat class="d-flex align-center pa-2 mb-6 date-nav-card" color="surface">
@@ -228,12 +232,12 @@
             <v-divider></v-divider>
             
             <!-- CONTEÚDO DA AGENDA -->
-            <div v-if="loading" class="text-center pa-16">
+            <div v-if="loadingData" class="text-center pa-16">
               <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
               <p class="mt-4">Carregando agenda...</p>
             </div>
             
-            <div v-else-if="estaFechado" class="text-center pa-16">
+            <div v-else-if="!loadingData && estaFechado" class="text-center pa-16">
               <v-icon size="64" color="grey">mdi-door-closed-lock</v-icon>
               <p class="mt-4 text-medium-emphasis">Barbearia Fechada</p>
               <p class="text-caption text-medium-emphasis">Configure os horários de funcionamento</p>
@@ -370,7 +374,7 @@ import { useAuth } from '@/composables/useAuth'
 import { useTenant } from '@/composables/useTenant'
 
 // Composables
-const { user, barbeariaInfo, barbeariaId, logout } = useAuth()
+const { user, barbeariaInfo, barbeariaId, logout, loading } = useAuth()
 const { 
   fetchAgendamentos, 
   fetchServicos, 
@@ -390,7 +394,7 @@ const currentRoute = ref('dashboard')
 const notificacoesCount = ref(3) // Exemplo
 
 // Estado da aplicação
-const loading = ref(true)
+const loadingData = ref(true) // Renomeado para não conflitar com o loading do useAuth
 const allAppointments = ref([])
 const dataExibida = ref(new Date())
 const configHorarios = ref(null)
@@ -449,7 +453,7 @@ const dataFormatada = computed(() => {
   }
 })
 
-const estaFechado = computed(() => !loading.value && !configHorarios.value)
+const estaFechado = computed(() => !configHorarios.value)
 
 const todayAppointments = computed(() => {
   const selectedDateStr = dataExibida.value.toISOString().split('T')[0]
@@ -544,7 +548,7 @@ const agendaDoDia = computed(() => {
 
 // Métodos
 const fetchData = async () => {
-  loading.value = true
+  loadingData.value = true
   try {
     const [agendamentos, servicos] = await Promise.all([
       fetchAgendamentos(),
@@ -558,7 +562,7 @@ const fetchData = async () => {
     console.error("Erro ao buscar dados:", error)
     showAlertMessage('Erro ao carregar dados', 'error')
   } finally {
-    loading.value = false
+    loadingData.value = false
   }
 }
 
@@ -759,8 +763,11 @@ watch(servicoSelecionado, (novoServico) => {
 })
 
 // Lifecycle
-onMounted(() => {
-  fetchData()
+watch(loading, (isLoading) => {
+  // Quando o loading da autenticação terminar E tivermos um barbeariaId, buscar os dados.
+  if (!isLoading && barbeariaId.value) {
+    fetchData()
+  }
 })
 
 // SISTEMA DE CORES (mesmo do código original)
