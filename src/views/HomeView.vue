@@ -101,7 +101,7 @@
           </v-btn>
         </v-card-title>
         <div class="typebot-wrapper">
-          <TypebotChat :typebot-id="typebotId" @on-open="onChatOpen" />
+          <TypebotChat :typebot-id="typebotId" @on-open="onChatOpen" @on-close="onChatClose" />
         </div>
       </v-card>
     </div>
@@ -274,49 +274,41 @@ onMounted(() => { fetchData(); });
 const mudarDia = (dias) => { const novaData = new Date(dataExibida.value); novaData.setDate(novaData.getDate() + dias); dataExibida.value = novaData; };
 const irParaHoje = () => { dataExibida.value = new Date(); };
 
+const resetModalForm = () => {
+  editando.value = false
+  idAgendamentoEditando.value = null
+  nomeCliente.value = ''
+  telefoneCliente.value = ''
+  servicoSelecionado.value = null
+  precoServico.value = 0
+}
+
 const fecharModal = () => {
-    modalAberto.value = false; editando.value = false; idAgendamentoEditando.value = null; nomeCliente.value = ''; telefoneCliente.value = ''; servicoSelecionado.value = null; horarioModal.value = ''; timestampModal.value = null; precoServico.value = 0;
+  modalAberto.value = false
+  resetModalForm()
+  horarioModal.value = ''
+  timestampModal.value = null
 };
 
 const handleItemClick = (item) => {
-    if (item.tipo === 'passado') return;
-    
-    horarioModal.value = item.horarioFormatado;
-    timestampModal.value = item.timestamp;
-    
-    if (item.tipo === 'agendamento') {
-        editando.value = true; 
-        idAgendamentoEditando.value = item.id; 
-        nomeCliente.value = item.NomeCliente; 
-        telefoneCliente.value = item.TelefoneCliente;
-        servicoSelecionado.value = listaServicos.value.find(s => s.id === item.servicoId) || null;
-        precoServico.value = item.preco || servicoSelecionado.value?.preco || 0;
-    } else if (item.tipo === 'cancelado') {
-        // Tratar cancelados como horários disponíveis para novo agendamento
-        editando.value = false; 
-        idAgendamentoEditando.value = null; 
-        nomeCliente.value = ''; 
-        telefoneCliente.value = ''; 
-        servicoSelecionado.value = null; 
-        precoServico.value = 0;
-    } else {
-        // Slot livre
-        editando.value = false; 
-        idAgendamentoEditando.value = null; 
-        nomeCliente.value = ''; 
-        telefoneCliente.value = ''; 
-        servicoSelecionado.value = null; 
-        precoServico.value = 0;
-    }
-    
-    modalAberto.value = true;
-};
-
-watch(servicoSelecionado, (novoServico) => {
-  if (!editando.value && novoServico) {
-    precoServico.value = novoServico.preco || 0;
+  if (item.tipo === 'passado') return
+  
+  horarioModal.value = item.horarioFormatado
+  timestampModal.value = item.timestamp
+  
+  if (item.tipo === 'agendamento') {
+    editando.value = true
+    idAgendamentoEditando.value = item.id
+    nomeCliente.value = item.NomeCliente
+    telefoneCliente.value = item.TelefoneCliente
+    servicoSelecionado.value = listaServicos.value.find(s => s.id === item.servicoId) || null
+    precoServico.value = item.preco || servicoSelecionado.value?.preco || 0
+  } else {
+    resetModalForm()
   }
-});
+  
+  modalAberto.value = true
+}
 
 const abrirModalParaNovoVazio = () => {
     const primeiroSlotLivre = agendaDoDia.value.find(item => item.tipo === 'livre' || item.tipo === 'cancelado');
@@ -491,4 +483,5 @@ const getPriceTextColor = (slot) => {
 
 const toggleChatPanel = () => { showChatPanel.value = !showChatPanel.value; };
 const onChatOpen = () => { notificationMessage.value = 'Assistente virtual iniciado! 🤖'; showNotification.value = true; };
+const onChatClose = () => { showChatPanel.value = false; };
 </script>
