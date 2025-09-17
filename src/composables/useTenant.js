@@ -1,5 +1,5 @@
 // composables/useTenant.js
-import { computed } from 'vue'
+import { computed, readonly } from 'vue'
 import { useAuth } from './useAuth'
 import { 
   collection, 

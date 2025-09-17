@@ -515,68 +515,55 @@ const handleSubmit = async () => {
   passwordError.value = ''
 
   try {
-    let result
-    
     if (currentTab.value === 'login') {
-      result = await loginWithEmail(email.value, password.value)
+      await loginWithEmail(email.value, password.value);
     } else {
-      result = await registerWithEmail(email.value, password.value, nomeBarbearia.value, nomeProprietario.value)
+      await registerWithEmail(email.value, password.value, nomeBarbearia.value, nomeProprietario.value);
     }
 
-    if (result.success) {
-      showAlertMessage(
-        currentTab.value === 'login' 
-          ? 'Login realizado com sucesso!' 
-          : 'Conta criada com sucesso! Bem-vindo ao BarberApp!',
-        'success'
-      )
-      
-      // Aguardar um pouco antes de redirecionar
-      setTimeout(() => {
-        router.push('/dashboard')
-      }, 1500)
-    } else {
-      const errorMsg = handleFirebaseError(result.error)
-      
-      // Mostrar erros específicos nos campos
-      if (result.error.includes('email')) {
-        emailError.value = errorMsg
-      } else if (result.error.includes('password')) {
-        passwordError.value = errorMsg
-      } else {
-        showAlertMessage(errorMsg, 'error')
-      }
-    }
+    showAlertMessage(
+      currentTab.value === 'login'
+        ? 'Login realizado com sucesso!'
+        : 'Conta criada com sucesso! Bem-vindo ao BarberApp!',
+      'success'
+    );
+
+    // Aguardar um pouco antes de redirecionar
+    setTimeout(() => {
+      router.push('/dashboard');
+    }, 1500);
   } catch (error) {
-    console.error('Erro no formulário:', error)
-    showAlertMessage('Erro interno. Tente novamente.', 'error')
+    console.error('Erro no formulário:', error);
+    const errorMsg = handleFirebaseError(error.code);
+
+    // Mostrar erros específicos nos campos
+    if (error.code.includes('email')) {
+      emailError.value = errorMsg;
+    } else if (error.code.includes('password')) {
+      passwordError.value = errorMsg;
+    } else {
+      showAlertMessage(errorMsg, 'error');
+    }
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 // Login com Google
 const handleGoogleLogin = async () => {
   googleLoading.value = true
-  
   try {
-    const result = await loginWithGoogle()
-    
-    if (result.success) {
-      showAlertMessage('Login com Google realizado com sucesso!', 'success')
-      
-      setTimeout(() => {
-        router.push('/dashboard')
-      }, 1500)
-    } else {
-      const errorMsg = handleFirebaseError(result.error)
-      showAlertMessage(errorMsg, 'error')
-    }
+    await loginWithGoogle();
+    showAlertMessage('Login com Google realizado com sucesso!', 'success');
+    setTimeout(() => {
+      router.push('/dashboard');
+    }, 1500);
   } catch (error) {
-    console.error('Erro no login Google:', error)
-    showAlertMessage('Erro no login com Google. Tente novamente.', 'error')
+    console.error('Erro no login Google:', error);
+    const errorMsg = handleFirebaseError(error.code);
+    showAlertMessage(errorMsg, 'error');
   } finally {
-    googleLoading.value = false
+    googleLoading.value = false;
   }
 }
 
