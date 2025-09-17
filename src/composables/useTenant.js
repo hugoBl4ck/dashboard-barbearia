@@ -114,7 +114,7 @@ export const useTenant = () => {
   }
 
   const updateServico = async (servicoId, dadosAtualizacao) => {
-    const docRef = getDoc('servicos', servicoId)
+    const docRef = getTenantDoc('servicos', servicoId)
     await updateDoc(docRef, {
       ...dadosAtualizacao,
       atualizadoEm: new Date().toISOString()
@@ -128,13 +128,13 @@ export const useTenant = () => {
 
   // MÉTODOS PARA HORÁRIOS
   const fetchHorario = async (diaDaSemana) => {
-    const docRef = getDoc('horarios', String(diaDaSemana))
+    const docRef = getTenantDoc('horarios', String(diaDaSemana))
     const docSnap = await getDoc(docRef)
     return docSnap.exists() ? docSnap.data() : null
   }
 
   const updateHorario = async (diaDaSemana, dadosHorario) => {
-    const docRef = getDoc('horarios', String(diaDaSemana))
+    const docRef = getTenantDoc('horarios', String(diaDaSemana))
     await updateDoc(docRef, dadosHorario)
   }
 
