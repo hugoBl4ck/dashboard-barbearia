@@ -112,8 +112,7 @@
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue';
-import { db } from '@/firebase';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { useTenant } from '@/composables/useTenant';
 import { Users, DollarSign, Calendar, TrendingUp } from 'lucide-vue-next';
 import Apexchart from 'vue3-apexcharts';
 
@@ -121,13 +120,13 @@ import Apexchart from 'vue3-apexcharts';
 const allAppointments = ref([]);
 const loading = ref(true);
 const isDark = ref(false); // Esta variável precisa vir do App.vue no futuro para ser reativa
+const { fetchAgendamentos } = useTenant();
 
 // --- BUSCA DE DADOS ---
 onMounted(async () => {
   try {
-    const q = query(collection(db, "Agendamentos"));
-    const querySnapshot = await getDocs(q);
-    allAppointments.value = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    // Busca os agendamentos usando a função segura do useTenant
+    allAppointments.value = await fetchAgendamentos();
   } catch (error) {
     console.error("Erro ao buscar dados:", error);
   } finally {
@@ -141,7 +140,7 @@ const totalClients = computed(() => new Set(allAppointments.value.map(apt => apt
 
 const totalRevenue = computed(() => {
   return allAppointments.value
-    .filter(apt => apt.Status === 'Concluído' && apt.preco)
+    .filter(apt => (apt.Status === 'Concluído' || apt.Status === 'Agendado') && apt.preco)
     .reduce((sum, apt) => sum + apt.preco, 0);
 });
 
@@ -154,7 +153,7 @@ const monthlyAppointments = computed(() => {
 const completionRate = computed(() => {
   const monthlyApts = allAppointments.value.filter(apt => new Date(apt.DataHoraISO) >= new Date(new Date().setMonth(new Date().getMonth() - 1)));
   if (monthlyApts.length === 0) return 0;
-  const completed = monthlyApts.filter(apt => apt.Status === 'Concluído').length;
+  const completed = monthlyApts.filter(apt => apt.Status === 'Concluído' || apt.Status === 'Agendado').length;
   return Math.round((completed / monthlyApts.length) * 100);
 });
 

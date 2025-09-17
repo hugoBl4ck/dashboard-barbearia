@@ -126,13 +126,15 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { db } from '@/firebase';
-import { collection, query, getDocs, doc, updateDoc } from 'firebase/firestore';
+import { useTenant } from '@/composables/useTenant';
 
 const loading = ref(true);
 const allAppointments = ref([]);
 const search = ref('');
 const expanded = ref([]); // Controla quais linhas estão expandidas
+
+// Usar o composable para acesso aos dados do tenant
+const { fetchAgendamentos, updateAgendamento, formatCurrency } = useTenant();
 
 const headers = [
   { title: 'Nome do Cliente', key: 'nome', align: 'start' },
@@ -146,13 +148,12 @@ const headers = [
 onMounted(async () => {
   loading.value = true;
   try {
-    const q = query(collection(db, "Agendamentos"));
-    const querySnapshot = await getDocs(q);
-    allAppointments.value = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
+    // Busca os agendamentos usando a função segura do useTenant
+    const agendamentos = await fetchAgendamentos();
+    allAppointments.value = agendamentos.map(agendamento => ({
+      ...agendamento,
       // Cria um campo 'precoEditavel' para o v-model não modificar o dado original diretamente
-      precoEditavel: doc.data().preco || 0 
+      precoEditavel: agendamento.preco || 0
     }));
   } finally {
     loading.value = false;
@@ -175,7 +176,9 @@ const clientData = computed(() => {
   return Object.values(clientsByPhone).map(client => {
     const agendamentosOrdenados = client.agendamentos.sort((a, b) => new Date(b.DataHoraISO) - new Date(a.DataHoraISO));
     const ultimoAgendamento = agendamentosOrdenados[0];
-    const totalGasto = agendamentosOrdenados.reduce((sum, apt) => sum + (apt.Status === 'Concluído' ? apt.preco || 0 : 0), 0);
+    // Considera agendamentos com status 'Agendado' ou 'Concluído' para o total gasto
+    const agendamentosValidos = agendamentosOrdenados.filter(apt => apt.Status === 'Agendado' || apt.Status === 'Concluído');
+    const totalGasto = agendamentosValidos.reduce((sum, apt) => sum + (apt.preco || 0), 0);
     
     return {
       nome: client.nome,
@@ -193,14 +196,13 @@ const clientData = computed(() => {
 // NOVA FUNÇÃO PARA SALVAR O PREÇO
 const salvarPreco = async (agendamento) => {
   try {
-    const agendamentoRef = doc(db, 'Agendamentos', agendamento.id);
-    await updateDoc(agendamentoRef, {
+    // Usa a função segura do useTenant para atualizar
+    await updateAgendamento(agendamento.id, {
       preco: agendamento.precoEditavel
     });
     
     // Atualiza o estado local para refletir a mudança sem precisar recarregar tudo
     agendamento.preco = agendamento.precoEditavel;
-    // O 'totalGasto' será recalculado automaticamente pela propriedade computada
     
     alert('Preço atualizado com sucesso!');
   } catch (error) {
