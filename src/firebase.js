@@ -2,6 +2,7 @@
 
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth"; // Importa o serviço de autenticação
 
 // Monta o objeto de configuração a partir de variáveis de ambiente individuais
 const firebaseConfig = {
@@ -18,7 +19,10 @@ if (!firebaseConfig.apiKey) {
   throw new Error("Variáveis de ambiente do Firebase não foram carregadas corretamente. Verifique sua configuração no Vercel e o prefixo VITE_.");
 }
 
+// Inicializa o Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
+const auth = getAuth(app); // Inicializa o serviço de autenticação
 
-export { db };
+// Exporta os serviços para serem usados em outros arquivos
+export { app, db, auth };
