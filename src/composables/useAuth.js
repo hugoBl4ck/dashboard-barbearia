@@ -41,9 +41,18 @@ onAuthStateChanged(auth, async (firebaseUser) => {
         }
       }
     } else {
-      // Se o usuário do Firebase existe mas não está no Firestore, limpa os dados locais
-      userData.value = null;
-      barbeariaInfo.value = null;
+      // Se o usuário do Firebase existe mas não está no Firestore, CRIA o documento.
+      const newUserDoc = await checkAndCreateUser(firebaseUser);
+      if (newUserDoc) {
+        userData.value = newUserDoc;
+        // Recarrega as informações da barbearia com base no novo documento
+        if (newUserDoc.barbeariaId) {
+          const barbeariaDoc = await getDoc(doc(db, 'barbearias', newUserDoc.barbeariaId));
+          if (barbeariaDoc.exists()) {
+            barbeariaInfo.value = { id: barbeariaDoc.id, ...barbeariaDoc.data() };
+          }
+        }
+      }
     }
     user.value = firebaseUser;
   } else {
@@ -63,8 +72,6 @@ export function useAuth() {
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
-      // O nome do proprietário virá do perfil do Google
-      await checkAndCreateUser(result.user, 'Nova Barbearia', result.user.displayName);
     } catch (error) {
       console.error("Erro no login com Google:", error);
       throw error;
@@ -74,7 +81,6 @@ export function useAuth() {
   const registerWithEmail = async (email, password, nomeBarbearia, nomeProprietario) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await checkAndCreateUser(userCredential.user, nomeBarbearia, nomeProprietario);
     } catch (error) {
       console.error('Erro no cadastro:', error);
       throw error;
@@ -128,28 +134,32 @@ async function createNewBarbearia(nomeBarbearia) {
     }
     return newBarbeariaId;
   }
-async function checkAndCreateUser(firebaseUser, nomeBarbearia = 'Nova Barbearia', nomeProprietario = 'Admin') {
-    const userDocRef = doc(db, 'usuarios', firebaseUser.uid);
-    const userDoc = await getDoc(userDocRef);
-    if (!userDoc.exists()) { // Só executa se o usuário for novo no Firestore
-      const usuariosQuery = query(collection(db, 'usuarios'));
-      const usuariosSnapshot = await getDocs(usuariosQuery);
-      let targetBarbeariaId;
-      if (usuariosSnapshot.empty) {
-        targetBarbeariaId = '01';
-        const barbeariaRef = doc(db, 'barbearias', targetBarbeariaId);
-        const barbeariaSnap = await getDoc(barbeariaRef);
-        if (!barbeariaSnap.exists()) {
-          await setDoc(barbeariaRef, { nome: 'Barbearia Principal (Migrada)', criadoEm: new Date() });
-        }
-      } else {
-        targetBarbeariaId = await createNewBarbearia(nomeBarbearia);
+
+async function checkAndCreateUser(firebaseUser) {
+    const userDocRef = doc(db, 'usuarios', firebaseUser.uid);    
+    const usuariosQuery = query(collection(db, 'usuarios'));
+    const usuariosSnapshot = await getDocs(usuariosQuery);
+    let targetBarbeariaId;
+
+    if (usuariosSnapshot.empty) {
+      targetBarbeariaId = '01';
+      const barbeariaRef = doc(db, 'barbearias', targetBarbeariaId);
+      const barbeariaSnap = await getDoc(barbeariaRef);
+      if (!barbeariaSnap.exists()) {
+        await setDoc(barbeariaRef, { nome: 'Barbearia Principal (Migrada)', criadoEm: new Date() });
       }
-      await setDoc(userDocRef, {
-        email: firebaseUser.email,
-        nome: nomeProprietario || firebaseUser.displayName, // Salva o nome do proprietário
-        barbeariaId: targetBarbeariaId,
-        role: 'admin',
-      });
+    } else {
+      // Para novos usuários, o nome da barbearia virá do formulário de cadastro, mas aqui não temos acesso.
+      // Uma melhoria futura seria ter um fluxo de "onboarding" após o cadastro.
+      // Por agora, criamos com um nome padrão.
+      targetBarbeariaId = await createNewBarbearia('Nova Barbearia');
     }
+    const newUserDocData = {
+      email: firebaseUser.email,
+      nome: firebaseUser.displayName || 'Novo Usuário',
+      barbeariaId: targetBarbeariaId,
+      role: 'admin',
+    };
+    await setDoc(userDocRef, newUserDocData);
+    return newUserDocData;
 }
