@@ -1,113 +1,121 @@
 <template>
   <v-app>
+    <!-- TELA DE CARREGAMENTO GLOBAL -->
+    <div v-if="loading" class="d-flex justify-center align-center fill-height">
+      <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
+    </div>
+
+    <!-- SÓ RENDERIZA O DASHBOARD SE O USUÁRIO ESTIVER LOGADO E OS DADOS PRONTOS -->
     <!-- MENU LATERAL (DRAWER) -->
-    <v-navigation-drawer
-      v-model="drawer"
-      :rail="rail"
-      permanent
-      @click="rail = false"
-    >
-      <v-list-item
-        :prepend-avatar="user?.photoURL"
-        :title="user?.displayName || user?.email"
-        :subtitle="barbeariaInfo?.nome"
-        nav
+    <template v-if="!loading">
+      <v-navigation-drawer
+        v-if="user && barbeariaInfo"
+        v-model="drawer"
+        :rail="rail"
+        permanent
+        @click="rail = false"
       >
+        <v-list-item
+          :prepend-avatar="user?.photoURL"
+          :title="user?.displayName || user?.email"
+          :subtitle="barbeariaInfo?.nome"
+          nav
+        >
+          <template v-slot:append>
+            <v-btn
+              variant="text"
+              icon="mdi-chevron-left"
+              @click.stop="rail = !rail"
+            ></v-btn>
+          </template>
+        </v-list-item>
+
+        <v-divider></v-divider>
+
+        <v-list density="compact" nav>
+          <v-list-item
+            prepend-icon="mdi-view-dashboard"
+            title="Dashboard"
+            value="dashboard"
+            :active="currentRoute === 'dashboard'"
+            @click="navigateTo('dashboard')"
+          ></v-list-item>
+
+          <v-list-item
+            prepend-icon="mdi-calendar-check"
+            title="Agendamentos"
+            value="agendamentos"
+            :active="currentRoute === 'agendamentos'"
+            @click="navigateTo('agendamentos')"
+          ></v-list-item>
+
+          <v-list-item
+            prepend-icon="mdi-account-group"
+            title="Clientes"
+            value="clientes"
+            :active="currentRoute === 'clientes'"
+            @click="navigateTo('clientes')"
+          ></v-list-item>
+
+          <v-list-item
+            prepend-icon="mdi-scissors-cutting"
+            title="Serviços"
+            value="servicos"
+            :active="currentRoute === 'servicos'"
+            @click="navigateTo('servicos')"
+          ></v-list-item>
+
+          <v-list-item
+            prepend-icon="mdi-clock-outline"
+            title="Horários"
+            value="horarios"
+            :active="currentRoute === 'horarios'"
+            @click="navigateTo('horarios')"
+          ></v-list-item>
+
+          <v-list-item
+            prepend-icon="mdi-chart-line"
+            title="Relatórios"
+            value="relatorios"
+            :active="currentRoute === 'relatorios'"
+            @click="navigateTo('relatorios')"
+          ></v-list-item>
+
+          <v-divider class="my-2"></v-divider>
+
+          <v-list-item
+            prepend-icon="mdi-web"
+            title="Minha Landing Page"
+            value="landing"
+            @click="abrirLandingPage"
+          ></v-list-item>
+
+          <v-list-item
+            prepend-icon="mdi-cog"
+            title="Configurações"
+            value="configuracoes"
+            :active="currentRoute === 'configuracoes'"
+            @click="navigateTo('configuracoes')"
+          ></v-list-item>
+        </v-list>
+
         <template v-slot:append>
-          <v-btn
-            variant="text"
-            icon="mdi-chevron-left"
-            @click.stop="rail = !rail"
-          ></v-btn>
+          <div class="pa-2">
+            <v-btn
+              color="red"
+              variant="outlined"
+              block
+              @click="logout"
+              prepend-icon="mdi-logout"
+            >
+              Sair
+            </v-btn>
+          </div>
         </template>
-      </v-list-item>
-
-      <v-divider></v-divider>
-
-      <v-list density="compact" nav>
-        <v-list-item
-          prepend-icon="mdi-view-dashboard"
-          title="Dashboard"
-          value="dashboard"
-          :active="currentRoute === 'dashboard'"
-          @click="navigateTo('dashboard')"
-        ></v-list-item>
-
-        <v-list-item
-          prepend-icon="mdi-calendar-check"
-          title="Agendamentos"
-          value="agendamentos" 
-          :active="currentRoute === 'agendamentos'"
-          @click="navigateTo('agendamentos')"
-        ></v-list-item>
-
-        <v-list-item
-          prepend-icon="mdi-account-group"
-          title="Clientes"
-          value="clientes"
-          :active="currentRoute === 'clientes'"
-          @click="navigateTo('clientes')"
-        ></v-list-item>
-
-        <v-list-item
-          prepend-icon="mdi-scissors-cutting"
-          title="Serviços"
-          value="servicos"
-          :active="currentRoute === 'servicos'"
-          @click="navigateTo('servicos')"
-        ></v-list-item>
-
-        <v-list-item
-          prepend-icon="mdi-clock-outline"
-          title="Horários"
-          value="horarios"
-          :active="currentRoute === 'horarios'"
-          @click="navigateTo('horarios')"
-        ></v-list-item>
-
-        <v-list-item
-          prepend-icon="mdi-chart-line"
-          title="Relatórios"
-          value="relatorios"
-          :active="currentRoute === 'relatorios'"
-          @click="navigateTo('relatorios')"
-        ></v-list-item>
-
-        <v-divider class="my-2"></v-divider>
-
-        <v-list-item
-          prepend-icon="mdi-web"
-          title="Minha Landing Page"
-          value="landing"
-          @click="abrirLandingPage"
-        ></v-list-item>
-
-        <v-list-item
-          prepend-icon="mdi-cog"
-          title="Configurações"
-          value="configuracoes"
-          :active="currentRoute === 'configuracoes'"
-          @click="navigateTo('configuracoes')"
-        ></v-list-item>
-      </v-list>
-
-      <template v-slot:append>
-        <div class="pa-2">
-          <v-btn
-            color="red"
-            variant="outlined"
-            block
-            @click="logout"
-            prepend-icon="mdi-logout"
-          >
-            Sair
-          </v-btn>
-        </div>
-      </template>
-    </v-navigation-drawer>
+      </v-navigation-drawer>
 
     <!-- APP BAR -->
-    <v-app-bar color="primary" elevation="2">
+    <v-app-bar v-if="user && barbeariaInfo" color="primary" elevation="2">
       <v-app-bar-nav-icon @click="drawer = !drawer" v-if="$vuetify.display.mobile"></v-app-bar-nav-icon>
       
       <v-app-bar-title class="d-flex align-center">
@@ -156,13 +164,9 @@
       </v-menu>
     </v-app-bar>
 
-    <v-main>
+    <v-main v-if="user && barbeariaInfo">
       <!-- CONTEÚDO BASEADO NA ROTA ATUAL -->
-      <!-- Adicionamos um v-if aqui para garantir que tudo de useAuth esteja carregado antes de renderizar -->
-      <div v-if="loading" class="d-flex justify-center align-center fill-height">
-        <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
-      </div>
-      <div v-else-if="currentRoute === 'dashboard' && user && barbeariaInfo">
+      <div v-if="currentRoute === 'dashboard'">
         <v-container fluid class="pa-6 page-container">
           <!-- NAVEGAÇÃO DE DATA -->
           <v-card flat class="d-flex align-center pa-2 mb-6 date-nav-card" color="surface">
@@ -360,13 +364,16 @@
       </v-dialog>
 
       <!-- SNACKBAR -->
-      <v-snackbar v-model="showNotification" :timeout="3000" color="success" location="top">
+      <v-snackbar v-model="showNotification" :timeout="3000" :color="notificationType" location="top">
         <v-icon class="mr-2">mdi-check-circle</v-icon> 
         {{ notificationMessage }}
       </v-snackbar>
     </v-main>
+    </template>
   </v-app>
 </template>
+
+<!-- O bloco de script estava duplicado. Unifiquei os dois em um só. -->
 
 <script setup>
 import { ref, onMounted, computed, watch } from 'vue'
@@ -405,6 +412,7 @@ const savingLoading = ref(false)
 const deletingLoading = ref(false)
 const showNotification = ref(false)
 const notificationMessage = ref('')
+const notificationType = ref('success')
 
 // Dados do modal
 const nomeCliente = ref('')
@@ -586,8 +594,9 @@ const irParaHoje = () => {
   dataExibida.value = new Date()
 }
 
-const showAlertMessage = (message, type = 'success') => {
+const showAlertMessage = (message, type = 'success') => { // Renomeado para corresponder ao uso
   notificationMessage.value = message
+  notificationType.value = type
   showNotification.value = true
 }
 
@@ -636,7 +645,7 @@ const abrirModalParaNovoVazio = () => {
   if (primeiroSlotLivre) {
     handleItemClick(primeiroSlotLivre)
   } else {
-    showAlertMessage('Não há horários vagos hoje.', 'warning')
+    showAlertMessage('Não há horários vagos hoje.', 'orange')
   }
 }
 

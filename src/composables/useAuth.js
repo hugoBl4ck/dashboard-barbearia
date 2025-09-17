@@ -58,52 +58,35 @@ onAuthStateChanged(auth, async (firebaseUser) => {
 // A função que os componentes usarão para ACESSAR o estado e as AÇÕES.
 export function useAuth() {
   const router = useRouter();
-  const actionLoading = ref(false); // Loading específico para ações de login/cadastro
-
-  const createNewBarbearia = async (nomeBarbearia) => {
-    // ... (lógica de criação da barbearia, está correta)
-  };
-  
-  const checkAndCreateUser = async (firebaseUser, nomeBarbearia = 'Nova Barbearia') => {
-    // ... (lógica de verificação, está correta)
-  };
 
   const loginWithGoogle = async () => {
-    actionLoading.value = true;
     try {
       const provider = new GoogleAuthProvider();
       const result = await signInWithPopup(auth, provider);
-      await checkAndCreateUser(result.user);
+      // O nome do proprietário virá do perfil do Google
+      await checkAndCreateUser(result.user, 'Nova Barbearia', result.user.displayName);
     } catch (error) {
       console.error("Erro no login com Google:", error);
       throw error;
-    } finally {
-      actionLoading.value = false;
     }
   };
   
-  const registerWithEmail = async (email, password, nomeBarbearia) => {
-    actionLoading.value = true;
+  const registerWithEmail = async (email, password, nomeBarbearia, nomeProprietario) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await checkAndCreateUser(userCredential.user, nomeBarbearia);
+      await checkAndCreateUser(userCredential.user, nomeBarbearia, nomeProprietario);
     } catch (error) {
       console.error('Erro no cadastro:', error);
       throw error;
-    } finally {
-      actionLoading.value = false;
     }
   };
 
-  const loginWithEmail = async (email, password) => {
-    actionLoading.value = true;
+  const loginWithEmail = async (email, password) => {    
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (error) {
       console.error("Erro no login com E-mail:", error);
       throw error;
-    } finally {
-      actionLoading.value = false;
     }
   };
 
@@ -119,7 +102,6 @@ export function useAuth() {
     barbeariaId: computed(() => userData.value?.barbeariaId),
     barbeariaInfo: readonly(barbeariaInfo),
     loading: readonly(loading), // Loading inicial da autenticação
-    actionLoading: readonly(actionLoading), // Loading para os botões
     isAuthenticated: computed(() => !!user.value),
     loginWithGoogle,
     registerWithEmail,
@@ -146,7 +128,7 @@ async function createNewBarbearia(nomeBarbearia) {
     }
     return newBarbeariaId;
   }
-async function checkAndCreateUser(firebaseUser, nomeBarbearia = 'Nova Barbearia') {
+async function checkAndCreateUser(firebaseUser, nomeBarbearia = 'Nova Barbearia', nomeProprietario = 'Admin') {
     const userDocRef = doc(db, 'usuarios', firebaseUser.uid);
     const userDoc = await getDoc(userDocRef);
     if (!userDoc.exists()) { // Só executa se o usuário for novo no Firestore
@@ -164,7 +146,10 @@ async function checkAndCreateUser(firebaseUser, nomeBarbearia = 'Nova Barbearia'
         targetBarbeariaId = await createNewBarbearia(nomeBarbearia);
       }
       await setDoc(userDocRef, {
-        email: firebaseUser.email, barbeariaId: targetBarbeariaId, role: 'admin',
+        email: firebaseUser.email,
+        nome: nomeProprietario || firebaseUser.displayName, // Salva o nome do proprietário
+        barbeariaId: targetBarbeariaId,
+        role: 'admin',
       });
     }
 }
