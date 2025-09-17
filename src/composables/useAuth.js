@@ -1,5 +1,5 @@
 // composables/useAuth.js
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed, readonly } from 'vue'
 import { 
   signInWithPopup, 
   GoogleAuthProvider, 

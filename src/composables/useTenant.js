@@ -246,7 +246,7 @@ export const useTenant = () => {
     updateBarbeariaConfig,
     updateBarbeariaNome,
 
-    // Utilitários
+    // Utilitários a
     formatCurrency,
     formatDateTime,
     formatDate,
