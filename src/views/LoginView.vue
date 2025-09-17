@@ -509,29 +509,20 @@ const handleFirebaseError = (errorMessage) => {
 // Submeter formulário
 const handleSubmit = async () => {
   if (!isFormValid.value) return
-  
+
   loading.value = true
   emailError.value = ''
   passwordError.value = ''
 
   try {
+    // Apenas inicia o processo de login/registro.
+    // Não redireciona daqui. O watcher fará isso.
     if (currentTab.value === 'login') {
       await loginWithEmail(email.value, password.value);
     } else {
       await registerWithEmail(email.value, password.value, nomeBarbearia.value, nomeProprietario.value);
     }
 
-    showAlertMessage(
-      currentTab.value === 'login'
-        ? 'Login realizado com sucesso!'
-        : 'Conta criada com sucesso! Bem-vindo ao BarberApp!',
-      'success'
-    );
-
-    // Aguardar um pouco antes de redirecionar
-    setTimeout(() => {
-      router.push('/dashboard');
-    }, 1500);
   } catch (error) {
     console.error('Erro no formulário:', error);
     const errorMsg = handleFirebaseError(error.code);
@@ -554,10 +545,6 @@ const handleGoogleLogin = async () => {
   googleLoading.value = true
   try {
     await loginWithGoogle();
-    showAlertMessage('Login com Google realizado com sucesso!', 'success');
-    setTimeout(() => {
-      router.push('/dashboard');
-    }, 1500);
   } catch (error) {
     console.error('Erro no login Google:', error);
     const errorMsg = handleFirebaseError(error.code);
@@ -608,6 +595,24 @@ const abrirDemo = () => {
   // Redirecionar para landing page demo
   window.open('/cliente/01', '_blank')
 }
+
+// --- CORREÇÃO PRINCIPAL ---
+// Observa o estado de autenticação do useAuth.
+// Quando o loading inicial termina e o usuário está autenticado, redireciona.
+watch(authLoading, (isLoading) => {
+  const { isAuthenticated } = useAuth();
+  if (!isLoading && isAuthenticated.value) {
+    showAlertMessage(
+      currentTab.value === 'login'
+        ? 'Login realizado com sucesso!'
+        : 'Conta criada com sucesso! Bem-vindo ao BarberApp!',
+      'success'
+    );
+    setTimeout(() => {
+      router.push('/dashboard');
+    }, 1500);
+  }
+});
 
 // Auto-focus nos inputs
 watch(currentTab, () => {
