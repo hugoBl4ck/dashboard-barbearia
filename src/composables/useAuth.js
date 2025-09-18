@@ -31,11 +31,11 @@ onAuthStateChanged(auth, async (firebaseUser) => {
     const userDoc = await getDoc(userDocRef)
     if (userDoc.exists()) {
       const uData = userDoc.data()
-      userData.value = uData;
+      userData.value = uData
       if (uData.barbeariaId) {
         const barbeariaDoc = await getDoc(doc(db, 'barbearias', uData.barbeariaId))
         if (barbeariaDoc.exists()) {
-          barbeariaInfo.value = { id: barbeariaDoc.id, ...barbeariaDoc.data() };
+          barbeariaInfo.value = { id: barbeariaDoc.id, ...barbeariaDoc.data() }
         }
       }
     } else {
@@ -45,7 +45,7 @@ onAuthStateChanged(auth, async (firebaseUser) => {
         if (newUserDoc.barbeariaId) {
           const barbeariaDoc = await getDoc(doc(db, 'barbearias', newUserDoc.barbeariaId))
           if (barbeariaDoc.exists()) {
-            barbeariaInfo.value = { id: barbeariaDoc.id, ...barbeariaDoc.data() };
+            barbeariaInfo.value = { id: barbeariaDoc.id, ...barbeariaDoc.data() }
           }
         }
       }
@@ -72,25 +72,19 @@ export function useAuth() {
     }
   }
 
-  const registerWithEmail = async (
-    email,
-    password,
-    nomeBarbearia,
-    nomeProprietario
-  ) => {
+  const registerWithEmail = async (email, password, nomeBarbearia, nomeProprietario) => {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const firebaseUser = userCredential.user
 
       const newBarbeariaId = await createNewBarbearia(nomeBarbearia)
-      
+
       await createUserProfile(firebaseUser, {
         barbeariaId: newBarbeariaId,
         nome: nomeProprietario,
       })
 
       await createInitialTenantData(db, newBarbeariaId)
-
     } catch (error) {
       console.error('Erro no cadastro:', error)
       throw error
@@ -148,10 +142,7 @@ async function createNewBarbearia(nomeBarbearia = 'Nova Barbearia') {
   return newBarbeariaId
 }
 
-async function createUserProfile(
-  firebaseUser,
-  additionalData
-) {
+async function createUserProfile(firebaseUser, additionalData) {
   const userDocRef = doc(db, 'usuarios', firebaseUser.uid)
   const newUserDocData = {
     email: firebaseUser.email,
@@ -160,8 +151,8 @@ async function createUserProfile(
     role: 'admin',
     criadoEm: new Date(),
   }
-  await setDoc(userDocRef, newUserDocData);
-  return newUserDocData;
+  await setDoc(userDocRef, newUserDocData)
+  return newUserDocData
 }
 
 async function checkAndCreateUserOnFirstLogin(firebaseUser) {
