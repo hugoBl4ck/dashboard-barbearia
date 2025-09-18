@@ -1,10 +1,27 @@
 <template>
-  <router-view />
+  <v-app>
+    <v-main class="d-flex justify-center align-center">
+      <!-- Se estiver carregando, mostra um spinner -->
+      <div v-if="loading" class="text-center">
+        <v-progress-circular
+          indeterminate
+          color="primary"
+          size="64"
+        ></v-progress-circular>
+        <p class="mt-4">Carregando...</p>
+      </div>
+      
+      <!-- Se não estiver carregando, mostra o conteúdo da rota -->
+      <router-view v-else />
+    </v-main>
+  </v-app>
 </template>
 
 <script setup>
-// App.vue simplificado - apenas renderiza as rotas
-// Toda lógica foi movida para os composables e views específicas
+import { useAuth } from '@/composables/useAuth';
+
+// Pega o estado de loading do nosso composable de autenticação
+const { loading } = useAuth();
 </script>
 
 <style>
