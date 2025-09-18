@@ -138,11 +138,11 @@ onMounted(loadServicos)
         no-data-text="Nenhum serviço encontrado."
         class="elevation-1"
       >
-        <template v-slot:[`item.preco`="{ item }"]>
+        <template v-slot:item.preco="{ item }">
           {{ tenant.formatCurrency(item.preco) }}
         </template>
 
-        <template v-slot:[`item.actions`="{ item }"]>
+        <template v-slot:item.actions="{ item }">
           <v-icon small class="mr-2" @click="openEditDialog(item)" title="Editar">
             mdi-pencil
           </v-icon>
@@ -151,7 +151,7 @@ onMounted(loadServicos)
           </v-icon>
         </template>
 
-        <template v-slot:[`item.nome`="{ item }"]>
+        <template v-slot:item.nome="{ item }">
             <span :class="{ 'text-disabled': !item.ativo }">{{ item.nome }}</span>
             <v-chip v-if="!item.ativo" size="small" class="ml-2">Inativo</v-chip>
         </template>
