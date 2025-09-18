@@ -260,7 +260,13 @@ watch(servicoSelecionado, (novoServico) => {
 })
 
 const navigateTo = (route) => (currentRoute.value = route)
-const abrirLandingPage = () => window.open(`/cliente/minha-barbearia`, '_blank')
+const abrirLandingPage = () => {
+  if (auth.barbeariaId.value) {
+    window.open(`/cliente/${auth.barbeariaId.value}`, '_blank');
+  } else {
+    alert('ID da barbearia não encontrado. Não é possível abrir a landing page.');
+  }
+}
 const logout = async () => await auth.logout()
 const mudarDia = (dias) => {
   const novaData = new Date(dataSelecionada.value)

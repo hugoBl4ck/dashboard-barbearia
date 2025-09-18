@@ -240,7 +240,7 @@
     </v-main>
 
     <!-- CHAT FLUTUANTE -->
-    <TypebotChat :typebot-id="typebotId" :show-floating-button="true" :theme="chatTheme" button-text="💬 Ajuda" />
+    <TypebotChat :typebot-id="typebotId" :prefilled-variables="{ barbeariaId: barbeariaId }" :show-floating-button="true" :theme="chatTheme" button-text="💬 Ajuda" />
   </v-app>
 </template>
 
@@ -262,7 +262,7 @@ const servicosDisponiveis = ref([])
 const horariosConfig = ref({})
 
 // Configuração do chat
-const typebotId = 'cliente-chat-' + barbeariaId // Chat específico para clientes
+const typebotId = 'my-typebot-lk5rehg' // ID Fixo para todas as barbearias
 const chatTheme = { 
   button: { backgroundColor: '#25D366' }, 
   chatWindow: { backgroundColor: '#FFFFFF' }

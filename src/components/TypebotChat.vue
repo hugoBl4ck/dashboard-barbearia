@@ -1,4 +1,4 @@
-<!-- ARQUIVO: src/components/TypebotChat.vue (COM DEBUG) -->
+<!-- ARQUIVO: src/components/TypebotChat.vue (COM DEBUG E VARS) -->
 <template>
   <div v-if="error" class="typebot-error-overlay">
     <strong>Erro no Typebot:</strong> {{ error }}
@@ -9,7 +9,10 @@
 <script setup>
 import { onMounted, onUnmounted, ref } from 'vue';
 
-const props = defineProps({ typebotId: { type: String, required: true } });
+const props = defineProps({
+  typebotId: { type: String, required: true },
+  prefilledVariables: { type: Object, default: () => ({}) }
+});
 const emit = defineEmits(['onOpen', 'onClose']);
 
 let typebotInstance = null;
@@ -35,6 +38,9 @@ onMounted(async () => {
   }
 
   console.log(`[Typebot] Tentando inicializar com o ID: "${props.typebotId}"`);
+  if (Object.keys(props.prefilledVariables).length > 0) {
+    console.log(`[Typebot] Com as variáveis:`, props.prefilledVariables);
+  }
 
   try {
     const Typebot = await loadScript();
@@ -42,6 +48,7 @@ onMounted(async () => {
 
     typebotInstance = await Typebot.initBubble({
       typebot: props.typebotId,
+      prefilledVariables: props.prefilledVariables,
       onOpen: () => emit('onOpen'),
       onClose: () => emit('onClose'),
     });
