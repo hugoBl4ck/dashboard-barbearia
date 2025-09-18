@@ -1,4 +1,4 @@
-// ARQUIVO: src/composables/useAuth.js (VERSÃO FINAL E CORRIGIDA)
+// ARQUIVO: src/composables/useAuth.js (VERSÃO COM CRIAÇÃO DE DADOS PADRÃO)
 
 import { ref, computed, readonly } from 'vue'
 import {
@@ -14,19 +14,17 @@ import {
 import { doc, getDoc, setDoc, collection } from 'firebase/firestore'
 import { db } from '@/firebase'
 import { useRouter } from 'vue-router'
+import { createInitialTenantData } from '@/firebase/tenantSetup' // IMPORTAÇÃO DA NOVA FUNÇÃO
 
 // --- ESTADO REATIVO GLOBAL ---
-// Estas variáveis vivem fora da função, então são compartilhadas por toda a aplicação.
 const user = ref(null)
 const userData = ref(null)
 const barbeariaInfo = ref(null)
 const loading = ref(true)
 
 // --- LISTENER GLOBAL ---
-// Configura o listener que atualiza o estado acima
 const auth = getAuth()
 onAuthStateChanged(auth, async (firebaseUser) => {
-  // Define loading como true no início do processo de verificação
   loading.value = true
   if (firebaseUser) {
     const userDocRef = doc(db, 'usuarios', firebaseUser.uid)
@@ -34,7 +32,6 @@ onAuthStateChanged(auth, async (firebaseUser) => {
     if (userDoc.exists()) {
       const uData = userDoc.data()
       userData.value = uData;
-      // GARANTIR que barbeariaInfo seja carregado ANTES de finalizar o loading
       if (uData.barbeariaId) {
         const barbeariaDoc = await getDoc(doc(db, 'barbearias', uData.barbeariaId))
         if (barbeariaDoc.exists()) {
@@ -42,12 +39,10 @@ onAuthStateChanged(auth, async (firebaseUser) => {
         }
       }
     } else {
-      // Se o usuário do Firebase existe mas não está no Firestore (cenário comum após login com Google pela 1ª vez),
-      // cria os documentos necessários. A lógica de cadastro por e-mail lida com isso separadamente.
+      // Se o usuário do Firebase existe mas não está no Firestore, cria os documentos necessários.
       const newUserDoc = await checkAndCreateUserOnFirstLogin(firebaseUser)
       if (newUserDoc) {
         userData.value = newUserDoc
-        // Recarrega as informações da barbearia com base no novo documento
         if (newUserDoc.barbeariaId) {
           const barbeariaDoc = await getDoc(doc(db, 'barbearias', newUserDoc.barbeariaId))
           if (barbeariaDoc.exists()) {
@@ -66,14 +61,13 @@ onAuthStateChanged(auth, async (firebaseUser) => {
 })
 
 // --- O COMPOSABLE ---
-// A função que os componentes usarão para ACESSAR o estado e as AÇÕES.
 export function useAuth() {
   const router = useRouter()
 
   const loginWithGoogle = async () => {
     try {
       const provider = new GoogleAuthProvider()
-      const result = await signInWithPopup(auth, provider)
+      await signInWithPopup(auth, provider)
     } catch (error) {
       console.error('Erro no login com Google:', error)
       throw error
@@ -90,12 +84,18 @@ export function useAuth() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const firebaseUser = userCredential.user
 
-      // Agora, com o usuário criado, criamos a barbearia e o perfil no Firestore com os dados corretos.
+      // 1. Cria a barbearia
       const newBarbeariaId = await createNewBarbearia(nomeBarbearia)
+      
+      // 2. Cria o perfil de usuário associado
       await createUserProfile(firebaseUser, {
         barbeariaId: newBarbeariaId,
         nome: nomeProprietario,
       })
+
+      // 3. CRIA OS DADOS PADRÃO PARA A NOVA BARBEARIA
+      await createInitialTenantData(db, newBarbeariaId)
+
     } catch (error) {
       console.error('Erro no cadastro:', error)
       throw error
@@ -125,13 +125,12 @@ export function useAuth() {
     }
   }
 
-  // Retorna o estado GLOBAL e as ações LOCAIS
   return {
     user: readonly(user),
     userData: readonly(userData),
     barbeariaId: computed(() => userData.value?.barbeariaId),
     barbeariaInfo: readonly(barbeariaInfo),
-    loading: readonly(loading), // Loading inicial da autenticação
+    loading: readonly(loading),
     isAuthenticated: computed(() => !!user.value),
     loginWithGoogle,
     registerWithEmail,
@@ -141,7 +140,8 @@ export function useAuth() {
   }
 }
 
-// Cole as funções de apoio aqui para manter o arquivo completo
+// --- FUNÇÕES DE APOIO ---
+
 async function createNewBarbearia(nomeBarbearia = 'Nova Barbearia') {
   const newBarbeariaRef = doc(collection(db, 'barbearias'))
   const newBarbeariaId = newBarbeariaRef.id
@@ -169,15 +169,9 @@ async function createUserProfile(
   return newUserDocData;
 }
 
-/**
- * Função para lidar com o primeiro login (ex: via Google) onde não temos
- * informações prévias da barbearia.
- */
 async function checkAndCreateUserOnFirstLogin(firebaseUser) {
-  const userDocRef = doc(db, 'usuarios', firebaseUser.uid)
   let targetBarbeariaId
 
-  // Tenta ler a "Barbearia 01" para ver se o sistema já foi inicializado.
   const barbeariaPrincipalRef = doc(db, 'barbearias', '01')
   const barbeariaPrincipalSnap = await getDoc(barbeariaPrincipalRef)
 
@@ -187,6 +181,10 @@ async function checkAndCreateUserOnFirstLogin(firebaseUser) {
   } else {
     targetBarbeariaId = await createNewBarbearia('Nova Barbearia (Google)')
   }
+
+  // CRIA OS DADOS PADRÃO ANTES DE RETORNAR
+  await createInitialTenantData(db, targetBarbeariaId)
+
   return await createUserProfile(firebaseUser, {
     barbeariaId: targetBarbeariaId,
     nome: firebaseUser.displayName || 'Novo Usuário',
