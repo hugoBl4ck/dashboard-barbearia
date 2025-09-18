@@ -1,10 +1,10 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import { useTenant } from '@/composables/useTenant'
 
 // --- HOOKS ---
-const auth = useAuth() // Mantém a reatividade
+const auth = useAuth()
 const tenant = useTenant()
 
 // --- REFS COMPUTADOS PARA FACILIDADE ---
@@ -12,11 +12,11 @@ const user = computed(() => auth.user)
 const barbeariaInfo = computed(() => auth.barbeariaInfo)
 
 // --- ESTADO GLOBAL ---
-const loading = ref(true) // Carregamento inicial da página
+const appLoading = ref(true) // Carregamento inicial do app
 const loadingData = ref(false) // Carregamento dos dados da agenda
 const drawer = ref(true)
 const rail = ref(false)
-const currentRoute = ref('dashboard') // Simula a rota atual
+const currentRoute = ref('dashboard')
 
 // --- ESTADO DA AGENDA ---
 const dataSelecionada = ref(new Date())
@@ -24,6 +24,13 @@ const agendaDoDia = ref([])
 const estatisticasDia = ref({ agendados: 0, faturamentoFormatado: 'R$ 0,00' })
 const proximoAgendamento = ref(null)
 const estaFechado = ref(false)
+
+// --- ESTADO DE ERRO ---
+const errorState = ref({
+  hasError: false,
+  message: '',
+  canRetry: false,
+})
 
 // --- ESTADO DO MODAL ---
 const modalAberto = ref(false)
@@ -56,119 +63,190 @@ const dataFormatada = computed(() => {
   }
 })
 
+// CORREÇÃO: Computed para verificar se o app está pronto
+const isAppReady = computed(() => {
+  return auth.isReady.value && !auth.error.value
+})
+
 // --- WATCHERS ---
+// CORREÇÃO: Usar isAppReady ao invés de tenant.isTenantReady
 watch(
-  tenant.isTenantReady,
+  isAppReady,
   (ready) => {
-    if (ready) carregarDadosIniciais()
+    if (ready) {
+      appLoading.value = false
+      carregarDadosIniciais()
+    }
   },
   { immediate: true },
 )
 
-watch(dataSelecionada, () => carregarDadosAgenda())
+// Observar mudanças na data
+watch(dataSelecionada, () => {
+  if (isAppReady.value) {
+    carregarDadosAgenda()
+  }
+})
+
+// Observar erros de auth
+watch(
+  () => auth.error.value,
+  (error) => {
+    if (error) {
+      errorState.value = {
+        hasError: true,
+        message: `Erro de autenticação: ${error}`,
+        canRetry: true,
+      }
+      appLoading.value = false
+    } else {
+      errorState.value = {
+        hasError: false,
+        message: '',
+        canRetry: false,
+      }
+    }
+  },
+)
 
 // --- FUNÇÕES ---
 const carregarDadosIniciais = async () => {
-  loading.value = true
-  listaServicos.value = await tenant.fetchServicos()
-  await carregarDadosAgenda()
-  loading.value = false
+  if (!isAppReady.value) return
+
+  try {
+    console.log('[CARREGANDO DADOS INICIAIS]')
+    errorState.value.hasError = false
+
+    listaServicos.value = await tenant.fetchServicos()
+    await carregarDadosAgenda()
+
+    console.log('[DADOS INICIAIS CARREGADOS]')
+  } catch (error) {
+    console.error('Erro ao carregar dados iniciais:', error)
+    errorState.value = {
+      hasError: true,
+      message: 'Erro ao carregar dados da barbearia',
+      canRetry: true,
+    }
+  }
 }
 
 const carregarDadosAgenda = async () => {
+  if (!isAppReady.value) return
+
   loadingData.value = true
-  const diaDaSemana = dataSelecionada.value.getDay()
-  const configHorarios = await tenant.fetchHorario(diaDaSemana)
 
-  if (!configHorarios || !configHorarios.InicioManha) {
-    estaFechado.value = true
-    agendaDoDia.value = []
-    loadingData.value = false
-    return
-  }
+  try {
+    const diaDaSemana = dataSelecionada.value.getDay()
+    const configHorarios = await tenant.fetchHorario(diaDaSemana)
 
-  estaFechado.value = false
-  const inicioDia = new Date(dataSelecionada.value)
-  inicioDia.setHours(0, 0, 0, 0)
-  const fimDia = new Date(dataSelecionada.value)
-  fimDia.setHours(23, 59, 59, 999)
-
-  const agendamentos = await tenant.fetchAgendamentos({
-    dataInicio: inicioDia.toISOString(),
-    dataFim: fimDia.toISOString(),
-  })
-
-  const stats = tenant.calcularEstatisticasDia(agendamentos, dataSelecionada.value)
-  estatisticasDia.value = {
-    agendados: stats.agendados,
-    faturamentoFormatado: stats.faturamentoFormatado,
-  }
-
-  proximoAgendamento.value =
-    agendamentos
-      .filter((a) => new Date(a.DataHoraISO) > new Date() && a.Status === 'Agendado')
-      .sort((a, b) => new Date(a.DataHoraISO).getTime() - new Date(b.DataHoraISO).getTime())[0] ||
-    null
-
-  // Gerar slots da agenda
-  const slots = []
-  const agendamentosMap = new Map(agendamentos.map((a) => [new Date(a.DataHoraISO).getTime(), a]))
-  const intervalo = barbeariaInfo.value?.configuracoes.intervaloAgendamento || 30
-
-  const parseTime = (str) =>
-    str ? parseInt(str.split(':')[0]) * 60 + parseInt(str.split(':')[1]) : 0
-  const minutoInicio = parseTime(configHorarios.InicioManha)
-  const minutoFim = parseTime(configHorarios.FimTarde || configHorarios.FimManha)
-  const minutoAlmocoInicio = parseTime(configHorarios.InicioTarde ? configHorarios.FimManha : '')
-  const minutoAlmocoFim = parseTime(configHorarios.InicioTarde)
-
-  for (let minuto = minutoInicio; minuto < minutoFim; minuto += intervalo) {
-    if (
-      minutoAlmocoInicio &&
-      minutoAlmocoFim &&
-      minuto >= minutoAlmocoInicio &&
-      minuto < minutoAlmocoFim
-    )
-      continue
-
-    const dataSlot = new Date(dataSelecionada.value)
-    dataSlot.setHours(Math.floor(minuto / 60), minuto % 60, 0, 0)
-    const timestamp = dataSlot.getTime()
-    const agendamento = agendamentosMap.get(timestamp)
-    const estaNoPassado =
-      timestamp < new Date().getTime() &&
-      dataSelecionada.value.toDateString() === new Date().toDateString()
-
-    if (agendamento) {
-      slots.push({
-        timestamp,
-        horarioFormatado: new Date(agendamento.DataHoraISO).toLocaleTimeString('pt-BR', {
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-        tipo: estaNoPassado ? 'passado' : 'agendamento',
-        titulo: agendamento.NomeCliente,
-        detalhes: agendamento.servicoNome,
-        preco: agendamento.preco,
-        status: agendamento.Status,
-        agendamento,
-      })
-    } else {
-      slots.push({
-        timestamp,
-        horarioFormatado: dataSlot.toLocaleTimeString('pt-BR', {
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-        tipo: estaNoPassado ? 'passado' : 'livre',
-        titulo: estaNoPassado ? 'Encerrado' : 'Disponível',
-        status: estaNoPassado ? 'Encerrado' : 'Livre',
-      })
+    if (!configHorarios || !configHorarios.InicioManha) {
+      estaFechado.value = true
+      agendaDoDia.value = []
+      estatisticasDia.value = { agendados: 0, faturamentoFormatado: 'R$ 0,00' }
+      proximoAgendamento.value = null
+      return
     }
-  }
 
-  agendaDoDia.value = slots
-  loadingData.value = false
+    estaFechado.value = false
+    const inicioDia = new Date(dataSelecionada.value)
+    inicioDia.setHours(0, 0, 0, 0)
+    const fimDia = new Date(dataSelecionada.value)
+    fimDia.setHours(23, 59, 59, 999)
+
+    const agendamentos = await tenant.fetchAgendamentos({
+      dataInicio: inicioDia.toISOString(),
+      dataFim: fimDia.toISOString(),
+    })
+
+    const stats = tenant.calcularEstatisticasDia(agendamentos, dataSelecionada.value)
+    estatisticasDia.value = {
+      agendados: stats.agendados,
+      faturamentoFormatado: stats.faturamentoFormatado,
+    }
+
+    proximoAgendamento.value =
+      agendamentos
+        .filter((a) => new Date(a.DataHoraISO) > new Date() && a.Status === 'Agendado')
+        .sort((a, b) => new Date(a.DataHoraISO).getTime() - new Date(b.DataHoraISO).getTime())[0] ||
+      null
+
+    // Gerar slots da agenda
+    const slots = []
+    const agendamentosMap = new Map(agendamentos.map((a) => [new Date(a.DataHoraISO).getTime(), a]))
+    const intervalo = barbeariaInfo.value?.configuracoes?.intervaloAgendamento || 30
+
+    const parseTime = (str) =>
+      str ? parseInt(str.split(':')[0]) * 60 + parseInt(str.split(':')[1]) : 0
+    const minutoInicio = parseTime(configHorarios.InicioManha)
+    const minutoFim = parseTime(configHorarios.FimTarde || configHorarios.FimManha)
+    const minutoAlmocoInicio = parseTime(configHorarios.InicioTarde ? configHorarios.FimManha : '')
+    const minutoAlmocoFim = parseTime(configHorarios.InicioTarde)
+
+    for (let minuto = minutoInicio; minuto < minutoFim; minuto += intervalo) {
+      if (
+        minutoAlmocoInicio &&
+        minutoAlmocoFim &&
+        minuto >= minutoAlmocoInicio &&
+        minuto < minutoAlmocoFim
+      )
+        continue
+
+      const dataSlot = new Date(dataSelecionada.value)
+      dataSlot.setHours(Math.floor(minuto / 60), minuto % 60, 0, 0)
+      const timestamp = dataSlot.getTime()
+      const agendamento = agendamentosMap.get(timestamp)
+      const estaNoPassado =
+        timestamp < new Date().getTime() &&
+        dataSelecionada.value.toDateString() === new Date().toDateString()
+
+      if (agendamento) {
+        slots.push({
+          timestamp,
+          horarioFormatado: new Date(agendamento.DataHoraISO).toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          tipo: estaNoPassado ? 'passado' : 'agendamento',
+          titulo: agendamento.NomeCliente,
+          detalhes: agendamento.servicoNome,
+          preco: agendamento.preco,
+          status: agendamento.Status,
+          agendamento,
+        })
+      } else {
+        slots.push({
+          timestamp,
+          horarioFormatado: dataSlot.toLocaleTimeString('pt-BR', {
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+          tipo: estaNoPassado ? 'passado' : 'livre',
+          titulo: estaNoPassado ? 'Encerrado' : 'Disponível',
+          status: estaNoPassado ? 'Encerrado' : 'Livre',
+        })
+      }
+    }
+
+    agendaDoDia.value = slots
+  } catch (error) {
+    console.error('Erro ao carregar agenda:', error)
+    errorState.value = {
+      hasError: true,
+      message: 'Erro ao carregar agenda do dia',
+      canRetry: true,
+    }
+  } finally {
+    loadingData.value = false
+  }
+}
+
+// NOVA FUNÇÃO: Retry para recarregar dados
+const retryLoadData = async () => {
+  errorState.value.hasError = false
+  appLoading.value = true
+  await carregarDadosIniciais()
+  appLoading.value = false
 }
 
 const navigateTo = (route) => (currentRoute.value = route)
@@ -178,7 +256,6 @@ const mudarDia = (dias) => {
   const novaData = new Date(dataSelecionada.value)
   novaData.setDate(novaData.getDate() + dias)
   dataSelecionada.value = novaData
-  carregarDadosAgenda()
 }
 const irParaHoje = () => (dataSelecionada.value = new Date())
 const abrirModalParaNovoVazio = () => {
@@ -229,25 +306,50 @@ const getChipColor = (status) => (status === 'Agendado' ? 'blue-lighten-5' : 'gr
 const getChipIcon = (status) => (status === 'Livre' ? 'mdi-check' : 'mdi-account')
 const getChipIconColor = (status) => (status === 'Livre' ? 'green' : 'blue')
 const getChipTextColor = (status) => (status === 'Livre' ? 'text-green' : 'text-blue')
+
+// CORREÇÃO: onMounted para debug
+onMounted(() => {
+  console.log('[HOME MOUNTED] Auth loading:', auth.loading.value)
+  console.log('[HOME MOUNTED] Auth user:', !!auth.user.value)
+  console.log('[HOME MOUNTED] Auth isReady:', auth.isReady.value)
+})
 </script>
 
 <template>
   <v-app>
     <!-- TELA DE CARREGAMENTO GLOBAL -->
-    <div v-if="loading" class="d-flex justify-center align-center fill-height">
-      <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
+    <div
+      v-if="appLoading || auth.loading.value"
+      class="d-flex justify-center align-center fill-height"
+    >
+      <div class="text-center">
+        <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
+        <p class="mt-4">Carregando dados...</p>
+        <p class="text-caption text-medium-emphasis">
+          {{ auth.loading.value ? 'Verificando autenticação...' : 'Preparando dashboard...' }}
+        </p>
+      </div>
     </div>
 
-    <!-- SÓ RENDERIZA O DASHBOARD SE O USUÁRIO ESTIVER LOGADO E OS DADOS PRONTOS -->
-    <!-- MENU LATERAL (DRAWER) -->
-    <template v-if="!loading">
-      <v-navigation-drawer
-        v-if="user"
-        v-model="drawer"
-        :rail="rail"
-        permanent
-        @click="rail = false"
-      >
+    <!-- TELA DE ERRO -->
+    <div v-else-if="errorState.hasError" class="d-flex justify-center align-center fill-height">
+      <v-card class="pa-8 text-center" max-width="500">
+        <v-icon size="64" color="error">mdi-alert-circle-outline</v-icon>
+        <h2 class="text-h5 mt-4 mb-2">Ops! Algo deu errado</h2>
+        <p class="text-body-2 text-medium-emphasis mb-6">
+          {{ errorState.message }}
+        </p>
+        <v-btn v-if="errorState.canRetry" color="primary" @click="retryLoadData" class="mr-2">
+          Tentar Novamente
+        </v-btn>
+        <v-btn variant="outlined" @click="logout"> Fazer Logout </v-btn>
+      </v-card>
+    </div>
+
+    <!-- DASHBOARD PRINCIPAL -->
+    <template v-else-if="user && isAppReady">
+      <!-- MENU LATERAL (DRAWER) -->
+      <v-navigation-drawer v-model="drawer" :rail="rail" permanent @click="rail = false">
         <v-list-item
           :prepend-avatar="user?.photoURL"
           :title="user?.displayName || user?.email"
@@ -338,7 +440,7 @@ const getChipTextColor = (status) => (status === 'Livre' ? 'text-green' : 'text-
       </v-navigation-drawer>
 
       <!-- APP BAR -->
-      <v-app-bar v-if="user" color="primary" elevation="2">
+      <v-app-bar color="primary" elevation="2">
         <v-app-bar-nav-icon
           @click="drawer = !drawer"
           v-if="$vuetify.display.mobile.value"
@@ -390,7 +492,7 @@ const getChipTextColor = (status) => (status === 'Livre' ? 'text-green' : 'text-
         </v-menu>
       </v-app-bar>
 
-      <v-main v-if="user">
+      <v-main>
         <!-- CONTEÚDO BASEADO NA ROTA ATUAL -->
         <div v-if="currentRoute === 'dashboard'">
           <v-container fluid class="pa-6 page-container">

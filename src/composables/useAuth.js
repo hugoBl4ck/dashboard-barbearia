@@ -1,4 +1,4 @@
-// ARQUIVO: src/composables/useAuth.js (VERSÃO SUGERIDA PELO USUÁRIO COM LOGS)
+// ARQUIVO: src/composables/useAuth.js (VERSÃO CORRIGIDA)
 
 import { ref, computed, readonly } from 'vue'
 import {
@@ -21,13 +21,19 @@ const user = ref(null)
 const userData = ref(null)
 const barbeariaInfo = ref(null)
 const loading = ref(true)
+const error = ref(null) // NOVO: Para capturar erros
 
 // --- FUNÇÕES DE APOIO (HELPER) ---
 
 async function loadBarbeariaInfo(barbeariaId) {
   if (!barbeariaId) return null
-  const snap = await getDoc(doc(db, 'barbearias', barbeariaId))
-  return snap.exists() ? { id: snap.id, ...snap.data() } : null
+  try {
+    const snap = await getDoc(doc(db, 'barbearias', barbeariaId))
+    return snap.exists() ? { id: snap.id, ...snap.data() } : null
+  } catch (err) {
+    console.error('Erro ao carregar barbearia:', err)
+    throw err
+  }
 }
 
 async function createUserProfile(firebaseUser, additionalData) {
@@ -81,6 +87,8 @@ async function checkAndCreateUserOnFirstLogin(firebaseUser) {
 const auth = getAuth()
 onAuthStateChanged(auth, async (firebaseUser) => {
   loading.value = true
+  error.value = null // Reset error state
+
   try {
     console.log('[AUTH STATE CHANGED] Usuário Firebase:', firebaseUser?.uid || 'nenhum')
 
@@ -93,9 +101,21 @@ onAuthStateChanged(auth, async (firebaseUser) => {
         const uData = userDoc.data()
         userData.value = uData
 
-        const barbearia = await loadBarbeariaInfo(uData.barbeariaId)
-        console.log('[BARBEARIA CARREGADA]', barbearia)
-        barbeariaInfo.value = barbearia
+        // CORREÇÃO: Aguardar carregar barbearia antes de definir como carregado
+        if (uData.barbeariaId) {
+          const barbearia = await loadBarbeariaInfo(uData.barbeariaId)
+          console.log('[BARBEARIA CARREGADA]', barbearia)
+          barbeariaInfo.value = barbearia
+
+          // VALIDAÇÃO: Se barbearia não existe, limpar dados
+          if (!barbearia) {
+            console.error('[BARBEARIA NÃO ENCONTRADA] ID:', uData.barbeariaId)
+            error.value = 'Barbearia não encontrada'
+          }
+        } else {
+          console.error('[USER SEM BARBEARIA ID]')
+          error.value = 'Usuário sem barbearia associada'
+        }
       } else {
         console.log('[USER DOC NÃO EXISTE] UID:', firebaseUser.uid)
 
@@ -106,6 +126,8 @@ onAuthStateChanged(auth, async (firebaseUser) => {
 
           userData.value = newUserDoc
           barbeariaInfo.value = await loadBarbeariaInfo(newUserDoc.barbeariaId)
+        } else {
+          error.value = 'Perfil de usuário não encontrado'
         }
       }
 
@@ -115,9 +137,16 @@ onAuthStateChanged(auth, async (firebaseUser) => {
       user.value = null
       userData.value = null
       barbeariaInfo.value = null
+      error.value = null
     }
   } catch (e) {
     console.error('Erro crítico no onAuthStateChanged:', e)
+    error.value = 'Erro ao carregar dados do usuário'
+
+    // Em caso de erro, limpar estados para evitar inconsistência
+    user.value = firebaseUser // Manter usuário Firebase
+    userData.value = null
+    barbeariaInfo.value = null
   } finally {
     loading.value = false
   }
@@ -156,12 +185,8 @@ export function useAuth() {
       await createInitialTenantData(db, newBarbeariaId)
       console.log('[REGISTER] Dados iniciais populados para barbearia:', newBarbeariaId)
 
-      const userDoc = await getDoc(doc(db, 'usuarios', firebaseUser.uid))
-      if (userDoc.exists()) {
-        console.log('[REGISTER] Documento final do usuário:', userDoc.data())
-        userData.value = userDoc.data()
-        barbeariaInfo.value = await loadBarbeariaInfo(userDoc.data().barbeariaId)
-      }
+      // CORREÇÃO: Não precisa recarregar aqui, o onAuthStateChanged fará isso
+      // O estado será atualizado automaticamente
     } catch (error) {
       console.error('Erro no cadastro:', error)
       throw error
@@ -191,13 +216,22 @@ export function useAuth() {
     }
   }
 
+  // NOVO: Computed para verificar se todos os dados estão prontos
+  const isReady = computed(() => {
+    return (
+      !loading.value && !!user.value && !!userData.value && !!barbeariaInfo.value && !error.value
+    )
+  })
+
   return {
     user: readonly(user),
     userData: readonly(userData),
     barbeariaId: computed(() => userData.value?.barbeariaId),
     barbeariaInfo: readonly(barbeariaInfo),
     loading: readonly(loading),
+    error: readonly(error), // NOVO
     isAuthenticated: computed(() => !!user.value),
+    isReady, // NOVO: Estado completo pronto
     loginWithGoogle,
     registerWithEmail,
     loginWithEmail,

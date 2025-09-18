@@ -1,4 +1,4 @@
-// composables/useTenant.js
+// composables/useTenant.js (VERSÃO CORRIGIDA)
 import { computed, readonly } from 'vue'
 import { useAuth } from './useAuth'
 import {
@@ -22,156 +22,251 @@ export const useTenant = () => {
   // Verificar se tenant está carregado
   const isTenantReady = computed(() => !!barbeariaId.value)
 
+  // CORREÇÃO: Validação mais robusta antes de acessar o Firebase
+  const validateTenantAccess = () => {
+    if (!barbeariaId.value) {
+      throw new Error('Barbearia ID não disponível. Faça login novamente.')
+    }
+    return barbeariaId.value
+  }
+
   // Construir path da coleção para o tenant atual
   const getCollection = (collectionName) => {
-    if (!barbeariaId.value) {
-      throw new Error('Barbearia ID não disponível')
-    }
-    return collection(db, `barbearias/${barbeariaId.value}/${collectionName}`)
+    const tenantId = validateTenantAccess()
+    return collection(db, `barbearias/${tenantId}/${collectionName}`)
   }
 
   // Construir path do documento para o tenant atual
   const getTenantDoc = (collectionName, docId) => {
-    if (!barbeariaId.value) {
-      throw new Error('Barbearia ID não disponível')
-    }
-    return doc(db, `barbearias/${barbeariaId.value}/${collectionName}`, docId)
+    const tenantId = validateTenantAccess()
+    return doc(db, `barbearias/${tenantId}/${collectionName}`, docId)
   }
 
   // MÉTODOS PARA AGENDAMENTOS
   const agendamentosCollection = () => getCollection('agendamentos')
 
   const fetchAgendamentos = async (filters = {}) => {
-    let q = query(agendamentosCollection())
+    try {
+      let q = query(agendamentosCollection())
 
-    // Aplicar filtros se fornecidos
-    if (filters.status) {
-      q = query(q, where('Status', '==', filters.status))
+      // Aplicar filtros se fornecidos
+      if (filters.status) {
+        q = query(q, where('Status', '==', filters.status))
+      }
+      if (filters.dataInicio && filters.dataFim) {
+        q = query(
+          q,
+          where('DataHoraISO', '>=', filters.dataInicio),
+          where('DataHoraISO', '<=', filters.dataFim),
+        )
+      }
+
+      q = query(q, orderBy('DataHoraISO', 'asc'))
+
+      const snapshot = await getDocs(q)
+      const result = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+
+      console.log(`[FETCH AGENDAMENTOS] ${result.length} agendamentos encontrados`)
+      return result
+    } catch (error) {
+      console.error('Erro ao buscar agendamentos:', error)
+      throw new Error(`Erro ao carregar agendamentos: ${error.message}`)
     }
-    if (filters.dataInicio && filters.dataFim) {
-      q = query(
-        q,
-        where('DataHoraISO', '>=', filters.dataInicio),
-        where('DataHoraISO', '<=', filters.dataFim),
-      )
-    }
-
-    q = query(q, orderBy('DataHoraISO', 'asc'))
-
-    const snapshot = await getDocs(q)
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
   }
 
   const createAgendamento = async (dadosAgendamento) => {
-    const docRef = await addDoc(agendamentosCollection(), {
-      ...dadosAgendamento,
-      criadoEm: new Date().toISOString(),
-      atualizadoEm: new Date().toISOString(),
-    })
-    // Retorna o documento recém-criado para atualização reativa na UI
-    const newDoc = await getDoc(docRef)
-    return { id: newDoc.id, ...newDoc.data() }
+    try {
+      const docRef = await addDoc(agendamentosCollection(), {
+        ...dadosAgendamento,
+        criadoEm: new Date().toISOString(),
+        atualizadoEm: new Date().toISOString(),
+      })
+      // Retorna o documento recém-criado para atualização reativa na UI
+      const newDoc = await getDoc(docRef)
+      return { id: newDoc.id, ...newDoc.data() }
+    } catch (error) {
+      console.error('Erro ao criar agendamento:', error)
+      throw new Error(`Erro ao criar agendamento: ${error.message}`)
+    }
   }
 
   const updateAgendamento = async (agendamentoId, dadosAtualizacao) => {
-    const docRef = getTenantDoc('agendamentos', agendamentoId)
-    await updateDoc(docRef, {
-      ...dadosAtualizacao,
-      atualizadoEm: new Date().toISOString(),
-    })
-    // Retorna o documento atualizado para atualização reativa na UI
-    const updatedDoc = await getDoc(docRef)
-    return { id: updatedDoc.id, ...updatedDoc.data() }
+    try {
+      const docRef = getTenantDoc('agendamentos', agendamentoId)
+      await updateDoc(docRef, {
+        ...dadosAtualizacao,
+        atualizadoEm: new Date().toISOString(),
+      })
+      // Retorna o documento atualizado para atualização reativa na UI
+      const updatedDoc = await getDoc(docRef)
+      return { id: updatedDoc.id, ...updatedDoc.data() }
+    } catch (error) {
+      console.error('Erro ao atualizar agendamento:', error)
+      throw new Error(`Erro ao atualizar agendamento: ${error.message}`)
+    }
   }
 
   const deleteAgendamento = async (agendamentoId) => {
-    const docRef = getTenantDoc('agendamentos', agendamentoId)
-    await deleteDoc(docRef)
+    try {
+      const docRef = getTenantDoc('agendamentos', agendamentoId)
+      await deleteDoc(docRef)
+    } catch (error) {
+      console.error('Erro ao deletar agendamento:', error)
+      throw new Error(`Erro ao deletar agendamento: ${error.message}`)
+    }
   }
 
   const getAgendamento = async (agendamentoId) => {
-    const docRef = getTenantDoc('agendamentos', agendamentoId)
-    const docSnap = await getDoc(docRef)
-    return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null
+    try {
+      const docRef = getTenantDoc('agendamentos', agendamentoId)
+      const docSnap = await getDoc(docRef)
+      return docSnap.exists() ? { id: docSnap.id, ...docSnap.data() } : null
+    } catch (error) {
+      console.error('Erro ao buscar agendamento:', error)
+      throw new Error(`Erro ao buscar agendamento: ${error.message}`)
+    }
   }
 
   // MÉTODOS PARA SERVIÇOS
   const servicosCollection = () => getCollection('servicos')
 
   const fetchServicos = async (apenasAtivos = true) => {
-    let q = query(servicosCollection())
+    try {
+      let q = query(servicosCollection())
 
-    if (apenasAtivos) {
-      q = query(q, where('ativo', '==', true))
+      if (apenasAtivos) {
+        q = query(q, where('ativo', '==', true))
+      }
+
+      q = query(q, orderBy('nome', 'asc'))
+
+      const snapshot = await getDocs(q)
+      const result = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+
+      console.log(`[FETCH SERVICOS] ${result.length} serviços encontrados`)
+      return result
+    } catch (error) {
+      console.error('Erro ao buscar serviços:', error)
+
+      // CORREÇÃO: Se não há serviços, retorna array vazio ao invés de erro
+      if (error.code === 'permission-denied') {
+        console.warn('Sem permissão para acessar serviços, retornando lista vazia')
+        return []
+      }
+
+      throw new Error(`Erro ao carregar serviços: ${error.message}`)
     }
-
-    q = query(q, orderBy('nome', 'asc'))
-
-    const snapshot = await getDocs(q)
-    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
   }
 
   const createServico = async (dadosServico) => {
-    const docRef = await addDoc(servicosCollection(), {
-      ...dadosServico,
-      ativo: true,
-      criadoEm: new Date().toISOString(),
-    })
-    return docRef.id
+    try {
+      const docRef = await addDoc(servicosCollection(), {
+        ...dadosServico,
+        ativo: true,
+        criadoEm: new Date().toISOString(),
+      })
+      return docRef.id
+    } catch (error) {
+      console.error('Erro ao criar serviço:', error)
+      throw new Error(`Erro ao criar serviço: ${error.message}`)
+    }
   }
 
   const updateServico = async (servicoId, dadosAtualizacao) => {
-    const docRef = getTenantDoc('servicos', servicoId)
-    await updateDoc(docRef, {
-      ...dadosAtualizacao,
-      atualizadoEm: new Date().toISOString(),
-    })
+    try {
+      const docRef = getTenantDoc('servicos', servicoId)
+      await updateDoc(docRef, {
+        ...dadosAtualizacao,
+        atualizadoEm: new Date().toISOString(),
+      })
+    } catch (error) {
+      console.error('Erro ao atualizar serviço:', error)
+      throw new Error(`Erro ao atualizar serviço: ${error.message}`)
+    }
   }
 
   const deleteServico = async (servicoId) => {
-    // Soft delete - apenas marcar como inativo
-    await updateServico(servicoId, { ativo: false })
+    try {
+      // Soft delete - apenas marcar como inativo
+      await updateServico(servicoId, { ativo: false })
+    } catch (error) {
+      console.error('Erro ao deletar serviço:', error)
+      throw new Error(`Erro ao deletar serviço: ${error.message}`)
+    }
   }
 
   // MÉTODOS PARA HORÁRIOS
   const fetchHorario = async (diaDaSemana) => {
-    const docRef = getTenantDoc('horarios', String(diaDaSemana))
-    const docSnap = await getDoc(docRef)
-    return docSnap.exists() ? docSnap.data() : null
+    try {
+      const docRef = getTenantDoc('horarios', String(diaDaSemana))
+      const docSnap = await getDoc(docRef)
+      const result = docSnap.exists() ? docSnap.data() : null
+
+      console.log(`[FETCH HORARIO] Dia ${diaDaSemana}:`, result ? 'encontrado' : 'não configurado')
+      return result
+    } catch (error) {
+      console.error('Erro ao buscar horário:', error)
+
+      // CORREÇÃO: Se não há horário configurado, retorna null ao invés de erro
+      if (error.code === 'permission-denied') {
+        console.warn('Sem permissão para acessar horários')
+        return null
+      }
+
+      throw new Error(`Erro ao carregar horário: ${error.message}`)
+    }
   }
 
   const updateHorario = async (diaDaSemana, dadosHorario) => {
-    const docRef = getTenantDoc('horarios', String(diaDaSemana))
-    await setDoc(docRef, dadosHorario, { merge: true })
+    try {
+      const docRef = getTenantDoc('horarios', String(diaDaSemana))
+      await setDoc(docRef, dadosHorario, { merge: true })
+    } catch (error) {
+      console.error('Erro ao atualizar horário:', error)
+      throw new Error(`Erro ao atualizar horário: ${error.message}`)
+    }
   }
 
   const fetchTodosHorarios = async () => {
-    const horarios = {}
-    for (let dia = 0; dia <= 6; dia++) {
-      horarios[dia] = await fetchHorario(dia)
+    try {
+      const horarios = {}
+      for (let dia = 0; dia <= 6; dia++) {
+        horarios[dia] = await fetchHorario(dia)
+      }
+      return horarios
+    } catch (error) {
+      console.error('Erro ao buscar todos os horários:', error)
+      throw new Error(`Erro ao carregar horários: ${error.message}`)
     }
-    return horarios
   }
 
   // MÉTODOS PARA CONFIGURAÇÕES DA BARBEARIA
   const updateBarbeariaConfig = async (novasConfiguracoes) => {
-    if (!barbeariaId.value) return
-
-    const docRef = doc(db, 'barbearias', barbeariaId.value)
-    await updateDoc(docRef, {
-      configuracoes: novasConfiguracoes,
-      atualizadoEm: new Date().toISOString(),
-    })
+    try {
+      const tenantId = validateTenantAccess()
+      const docRef = doc(db, 'barbearias', tenantId)
+      await updateDoc(docRef, {
+        configuracoes: novasConfiguracoes,
+        atualizadoEm: new Date().toISOString(),
+      })
+    } catch (error) {
+      console.error('Erro ao atualizar configurações:', error)
+      throw new Error(`Erro ao atualizar configurações: ${error.message}`)
+    }
   }
 
   const updateBarbeariaNome = async (novoNome) => {
-    if (!barbeariaId.value) return
-
-    const docRef = doc(db, 'barbearias', barbeariaId.value)
-    await updateDoc(docRef, {
-      nome: novoNome,
-      atualizadoEm: new Date().toISOString(),
-    })
+    try {
+      const tenantId = validateTenantAccess()
+      const docRef = doc(db, 'barbearias', tenantId)
+      await updateDoc(docRef, {
+        nome: novoNome,
+        atualizadoEm: new Date().toISOString(),
+      })
+    } catch (error) {
+      console.error('Erro ao atualizar nome da barbearia:', error)
+      throw new Error(`Erro ao atualizar nome: ${error.message}`)
+    }
   }
 
   // UTILITÁRIOS
@@ -184,21 +279,31 @@ export const useTenant = () => {
 
   // Calcular estatísticas do dia
   const calcularEstatisticasDia = (agendamentos, data) => {
-    const dataStr = data.toISOString().split('T')[0]
-    const agendamentosDoDia = agendamentos.filter(
-      (apt) => new Date(apt.DataHoraISO).toISOString().split('T')[0] === dataStr,
-    )
+    try {
+      const dataStr = data.toISOString().split('T')[0]
+      const agendamentosDoDia = agendamentos.filter(
+        (apt) => new Date(apt.DataHoraISO).toISOString().split('T')[0] === dataStr,
+      )
 
-    const agendados = agendamentosDoDia.filter(
-      (apt) => apt.Status === 'Agendado' || apt.Status === 'Concluído',
-    )
-    const faturamento = agendados.reduce((sum, apt) => sum + (apt.preco || 0), 0)
+      const agendados = agendamentosDoDia.filter(
+        (apt) => apt.Status === 'Agendado' || apt.Status === 'Concluído',
+      )
+      const faturamento = agendados.reduce((sum, apt) => sum + (apt.preco || 0), 0)
 
-    return {
-      total: agendamentosDoDia.length,
-      agendados: agendados.length,
-      faturamento,
-      faturamentoFormatado: formatCurrency(faturamento),
+      return {
+        total: agendamentosDoDia.length,
+        agendados: agendados.length,
+        faturamento,
+        faturamentoFormatado: formatCurrency(faturamento),
+      }
+    } catch (error) {
+      console.error('Erro ao calcular estatísticas:', error)
+      return {
+        total: 0,
+        agendados: 0,
+        faturamento: 0,
+        faturamentoFormatado: formatCurrency(0),
+      }
     }
   }
 
