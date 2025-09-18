@@ -1,4 +1,4 @@
-// ARQUIVO: src/composables/useAuth.js (VERSÃO COM ORDEM DE CRIAÇÃO CORRIGIDA)
+// ARQUIVO: src/composables/useAuth.js (VERSÃO FINAL E CORRIGIDA)
 
 import { ref, computed, readonly } from 'vue'
 import {
