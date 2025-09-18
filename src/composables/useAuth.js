@@ -155,7 +155,7 @@ async function checkAndCreateUser(firebaseUser) {
     }
     const newUserDocData = {
       email: firebaseUser.email,
-      nome: firebaseUser.displayName || 'Novo Usuário',
+      nome: firebaseUser.displayName || 'Novo Usuário', // Usa o nome do Google ou um padrão
       barbeariaId: targetBarbeariaId,
       role: 'admin',
     };
