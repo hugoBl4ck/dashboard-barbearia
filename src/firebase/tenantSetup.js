@@ -3,7 +3,7 @@ import { collection, doc, writeBatch } from 'firebase/firestore';
 
 /**
  * Cria os dados iniciais para uma nova barbearia (tenant), 
- * incluindo serviços e horários padrão.
+ * incluindo serviços e horários padrão com IDs fixos.
  * @param {object} db - A instância do Firestore.
  * @param {string} barbeariaId - O ID da barbearia a ser populada.
  */
@@ -15,16 +15,20 @@ export const createInitialTenantData = async (db, barbeariaId) => {
   try {
     const batch = writeBatch(db);
 
-    // 1. Criar Serviços Padrão
+    // 1. Criar Serviços Padrão com IDs fixos
     const servicosRef = collection(db, `barbearias/${barbeariaId}/servicos`);
     const defaultServicos = [
-      { nome: 'Corte Masculino', preco: 35, duracao: 30, ativo: true, criadoEm: new Date() },
-      { nome: 'Barba', preco: 25, duracao: 20, ativo: true, criadoEm: new Date() },
-      { nome: 'Corte e Barba', preco: 55, duracao: 50, ativo: true, criadoEm: new Date() },
+      { id: 'corte', nome: 'Corte (Tesoura ou Máquina)', preco: 35, duracaoMinutos: 30, ativo: true, criadoEm: new Date() },
+      { id: 'barba', nome: 'Barba (Modelagem e Navalha)', preco: 30, duracaoMinutos: 30, ativo: true, criadoEm: new Date() },
+      { id: 'combo', nome: 'Corte + Barba', preco: 60, duracaoMinutos: 60, ativo: true, criadoEm: new Date() },
+      { id: 'sobrancelha', nome: 'Sobrancelha (Pinça ou Navalha)', preco: 20, duracaoMinutos: 15, ativo: true, criadoEm: new Date() },
+      { id: 'pezinho', nome: 'Acabamento "Pezinho"', preco: 15, duracaoMinutos: 15, ativo: true, criadoEm: new Date() },
     ];
+    
     defaultServicos.forEach(servico => {
-      const newServicoRef = doc(servicosRef);
-      batch.set(newServicoRef, servico);
+      const { id, ...serviceData } = servico; // Separa o ID do resto dos dados
+      const newServicoRef = doc(servicosRef, id); // Usa o ID predefinido para criar a referência
+      batch.set(newServicoRef, serviceData);
     });
 
     // 2. Criar Horários Padrão
@@ -50,7 +54,7 @@ export const createInitialTenantData = async (db, barbeariaId) => {
 
     // 3. Commit a transação em lote
     await batch.commit();
-    console.log(`Dados iniciais criados com sucesso para a barbearia ${barbeariaId}`);
+    console.log(`Dados iniciais (com serviços padrão) criados com sucesso para a barbearia ${barbeariaId}`);
 
   } catch (error) {
     console.error(`Erro ao criar dados iniciais para a barbearia ${barbeariaId}:`, error);
