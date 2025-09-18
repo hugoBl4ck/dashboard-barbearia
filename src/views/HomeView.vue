@@ -14,7 +14,6 @@ const user = computed(() => auth.user)
 const barbeariaInfo = computed(() => auth.barbeariaInfo)
 
 // --- ESTADO GLOBAL ---
-const appLoading = ref(true) // Carregamento inicial do app
 const loadingData = ref(false) // Carregamento dos dados da agenda
 const drawer = ref(true)
 const rail = ref(false)
@@ -27,13 +26,6 @@ const estatisticasDia = ref({ agendados: 0, faturamentoFormatado: 'R$ 0,00' })
 const proximoAgendamento = ref(null)
 const estaFechado = ref(false)
 let unsubscribeAgendamentos = null // Para guardar a função de unsubscribe do listener
-
-// --- ESTADO DE ERRO ---
-const errorState = ref({
-  hasError: false,
-  message: '',
-  canRetry: false,
-})
 
 // --- ESTADO DO MODAL ---
 const modalAberto = ref(false)
@@ -66,34 +58,23 @@ const dataFormatada = computed(() => {
   }
 })
 
-const isAppReady = computed(() => {
-  return auth.isReady.value && !auth.error.value
-})
-
 // --- FUNÇÕES ---
 const carregarDadosIniciais = async () => {
-  if (!isAppReady.value) return
+  if (!auth.isReady.value) return
 
   try {
     console.log('[CARREGANDO DADOS INICIAIS]')
-    errorState.value.hasError = false
-
     listaServicos.value = await tenant.fetchServicos()
-    carregarDadosAgenda() // Não precisa mais de await aqui
-
+    await carregarDadosAgenda()
     console.log('[DADOS INICIAIS CARREGADOS]')
   } catch (error) {
     console.error('Erro ao carregar dados iniciais:', error)
-    errorState.value = {
-      hasError: true,
-      message: 'Erro ao carregar dados da barbearia',
-      canRetry: true,
-    }
+    // O erro já é tratado globalmente no template
   }
 }
 
 const carregarDadosAgenda = async () => {
-  if (!isAppReady.value) return
+  if (!auth.isReady.value) return
 
   if (unsubscribeAgendamentos) {
     unsubscribeAgendamentos()
@@ -181,38 +162,27 @@ const carregarDadosAgenda = async () => {
     })
   } catch (error) {
     console.error('Erro ao carregar agenda:', error)
-    errorState.value = { hasError: true, message: 'Erro ao carregar agenda do dia', canRetry: true }
     loadingData.value = false
+    // O erro será refletido na UI pelo watcher do auth.error
   }
 }
 
-const retryLoadData = async () => {
-  errorState.value.hasError = false
-  appLoading.value = true
-  await carregarDadosIniciais()
-  appLoading.value = false
+const retryLoadData = () => {
+  // A re-autenticação ou atualização da página é a melhor forma de tentar novamente
+  // Por enquanto, o logout é a ação mais segura.
+  logout()
 }
 
 // --- WATCHERS ---
-watch(isAppReady, (ready) => {
+watch(auth.isReady, (ready) => {
   if (ready) {
-    appLoading.value = false
     carregarDadosIniciais()
   }
 }, { immediate: true })
 
 watch(dataSelecionada, () => {
-  if (isAppReady.value) {
+  if (auth.isReady.value) {
     carregarDadosAgenda()
-  }
-})
-
-watch(() => auth.error.value, (error) => {
-  if (error) {
-    errorState.value = { hasError: true, message: `Erro de autenticação: ${error}`, canRetry: true }
-    appLoading.value = false
-  } else {
-    errorState.value = { hasError: false, message: '', canRetry: false }
   }
 })
 
@@ -305,7 +275,6 @@ const salvarAgendamento = async () => {
     notificationType.value = 'success'
     showNotification.value = true
     fecharModal()
-    // Não precisa mais chamar carregarDadosAgenda() aqui, o listener faz o trabalho
   } catch (error) {
     console.error('Erro ao salvar agendamento:', error)
     notificationMessage.value = 'Erro ao salvar agendamento.'
@@ -327,7 +296,6 @@ const excluirAgendamento = async () => {
       notificationType.value = 'success'
       showNotification.value = true
       fecharModal()
-      // Não precisa mais chamar carregarDadosAgenda() aqui, o listener faz o trabalho
     } catch (error) {
       console.error('Erro ao excluir agendamento:', error)
       notificationMessage.value = 'Erro ao excluir agendamento.'
@@ -355,9 +323,12 @@ const getChipIconColor = (status) => (status === 'Livre' ? 'green' : 'blue')
 const getChipTextColor = (status) => (status === 'Livre' ? 'text-green' : 'text-blue')
 
 onMounted(() => {
-  console.log('[HOME MOUNTED] Auth loading:', auth.loading.value)
-  console.log('[HOME MOUNTED] Auth user:', !!auth.user.value)
-  console.log('[HOME MOUNTED] Auth isReady:', auth.isReady.value)
+  console.log('[HOME MOUNTED] Auth state:', { 
+    loading: auth.loading.value, 
+    user: !!auth.user.value, 
+    isReady: auth.isReady.value,
+    error: auth.error.value 
+  })
 })
 
 onUnmounted(() => {
@@ -372,35 +343,34 @@ onUnmounted(() => {
   <v-app>
     <!-- TELA DE CARREGAMENTO GLOBAL -->
     <div
-      v-if="appLoading || auth.loading.value"
+      v-if="auth.loading.value"
       class="d-flex justify-center align-center fill-height"
+      style="background-color: rgb(var(--v-theme-surface))"
     >
       <div class="text-center">
         <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
-        <p class="mt-4">Carregando dados...</p>
-        <p class="text-caption text-medium-emphasis">
-          {{ auth.loading.value ? 'Verificando autenticação...' : 'Preparando dashboard...' }}
-        </p>
+        <p class="mt-4">Verificando autenticação...</p>
       </div>
     </div>
 
-    <!-- TELA DE ERRO -->
-    <div v-else-if="errorState.hasError" class="d-flex justify-center align-center fill-height">
-      <v-card class="pa-8 text-center" max-width="500">
+    <!-- TELA DE ERRO GLOBAL -->
+    <div
+      v-else-if="auth.error.value"
+      class="d-flex justify-center align-center fill-height"
+      style="background-color: rgb(var(--v-theme-surface))"
+    >
+      <v-card class="pa-8 text-center" max-width="500" elevation="2">
         <v-icon size="64" color="error">mdi-alert-circle-outline</v-icon>
         <h2 class="text-h5 mt-4 mb-2">Ops! Algo deu errado</h2>
         <p class="text-body-2 text-medium-emphasis mb-6">
-          {{ errorState.message }}
+          {{ auth.error.value }}
         </p>
-        <v-btn v-if="errorState.canRetry" color="primary" @click="retryLoadData" class="mr-2">
-          Tentar Novamente
-        </v-btn>
         <v-btn variant="outlined" @click="logout"> Fazer Logout </v-btn>
       </v-card>
     </div>
 
     <!-- DASHBOARD PRINCIPAL -->
-    <template v-else-if="user && isAppReady">
+    <template v-else-if="auth.isReady.value">
       <!-- MENU LATERAL (DRAWER) -->
       <v-navigation-drawer v-model="drawer" :rail="rail" permanent @click="rail = false">
         <v-list-item
@@ -790,5 +760,21 @@ onUnmounted(() => {
         </v-snackbar>
       </v-main>
     </template>
+    
+    <!-- FALLBACK: Se não estiver carregando, nem com erro, nem pronto (estado inesperado) -->
+    <div
+      v-else
+      class="d-flex justify-center align-center fill-height"
+      style="background-color: rgb(var(--v-theme-surface))"
+    >
+      <v-card class="pa-8 text-center" max-width="500" elevation="2">
+        <v-icon size="64" color="warning">mdi-help-circle-outline</v-icon>
+        <h2 class="text-h5 mt-4 mb-2">Estado Inesperado</h2>
+        <p class="text-body-2 text-medium-emphasis mb-6">
+          A aplicação encontrou um estado inesperado. Por favor, tente recarregar a página ou fazer logout.
+        </p>
+        <v-btn variant="outlined" @click="logout"> Fazer Logout </v-btn>
+      </v-card>
+    </div>
   </v-app>
 </template>
