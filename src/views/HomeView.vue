@@ -68,47 +68,6 @@ const isAppReady = computed(() => {
   return auth.isReady.value && !auth.error.value
 })
 
-// --- WATCHERS ---
-// CORREÇÃO: Usar isAppReady ao invés de tenant.isTenantReady
-watch(
-  isAppReady,
-  (ready) => {
-    if (ready) {
-      appLoading.value = false
-      carregarDadosIniciais()
-    }
-  },
-  { immediate: true },
-)
-
-// Observar mudanças na data
-watch(dataSelecionada, () => {
-  if (isAppReady.value) {
-    carregarDadosAgenda()
-  }
-})
-
-// Observar erros de auth
-watch(
-  () => auth.error.value,
-  (error) => {
-    if (error) {
-      errorState.value = {
-        hasError: true,
-        message: `Erro de autenticação: ${error}`,
-        canRetry: true,
-      }
-      appLoading.value = false
-    } else {
-      errorState.value = {
-        hasError: false,
-        message: '',
-        canRetry: false,
-      }
-    }
-  },
-)
-
 // --- FUNÇÕES ---
 const carregarDadosIniciais = async () => {
   if (!isAppReady.value) return
@@ -248,6 +207,47 @@ const retryLoadData = async () => {
   await carregarDadosIniciais()
   appLoading.value = false
 }
+
+// --- WATCHERS ---
+// CORREÇÃO: Usar isAppReady ao invés de tenant.isTenantReady
+watch(
+  isAppReady,
+  (ready) => {
+    if (ready) {
+      appLoading.value = false
+      carregarDadosIniciais()
+    }
+  },
+  { immediate: true },
+)
+
+// Observar mudanças na data
+watch(dataSelecionada, () => {
+  if (isAppReady.value) {
+    carregarDadosAgenda()
+  }
+})
+
+// Observar erros de auth
+watch(
+  () => auth.error.value,
+  (error) => {
+    if (error) {
+      errorState.value = {
+        hasError: true,
+        message: `Erro de autenticação: ${error}`,
+        canRetry: true,
+      }
+      appLoading.value = false
+    } else {
+      errorState.value = {
+        hasError: false,
+        message: '',
+        canRetry: false,
+      }
+    }
+  },
+)
 
 const navigateTo = (route) => (currentRoute.value = route)
 const abrirLandingPage = () => window.open(`/cliente/minha-barbearia`, '_blank')
