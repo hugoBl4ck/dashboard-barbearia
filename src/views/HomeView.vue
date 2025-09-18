@@ -2,6 +2,8 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import { useTenant } from '@/composables/useTenant'
+import HorariosView from './HorariosView.vue'
+import ServicosView from './ServicosView.vue'
 
 // --- HOOKS ---
 const auth = useAuth()
@@ -249,6 +251,14 @@ watch(
   },
 )
 
+// Watcher para auto-preencher o preço ao selecionar um serviço
+watch(servicoSelecionado, (novoServico) => {
+  if (novoServico && !editando.value) {
+    // Apenas preenche se for um novo agendamento
+    precoServico.value = novoServico.preco
+  }
+})
+
 const navigateTo = (route) => (currentRoute.value = route)
 const abrirLandingPage = () => window.open(`/cliente/minha-barbearia`, '_blank')
 const logout = async () => await auth.logout()
@@ -285,11 +295,74 @@ const handleItemClick = (slot) => {
 }
 
 const fecharModal = () => (modalAberto.value = false)
-const salvarAgendamento = () => {
-  fecharModal()
+
+const salvarAgendamento = async () => {
+  if (!servicoSelecionado.value || !nomeCliente.value) {
+    notificationMessage.value = 'Preencha o serviço e o nome do cliente.'
+    notificationType.value = 'error'
+    showNotification.value = true
+    return
+  }
+
+  savingLoading.value = true
+  try {
+    const [horas, minutos] = horarioModal.value.split(':')
+    const dataAgendamento = new Date(dataSelecionada.value)
+    dataAgendamento.setHours(horas, minutos, 0, 0)
+
+    const dados = {
+      DataHoraISO: dataAgendamento.toISOString(),
+      NomeCliente: nomeCliente.value,
+      TelefoneCliente: telefoneCliente.value,
+      servicoId: servicoSelecionado.value.id,
+      servicoNome: servicoSelecionado.value.nome,
+      preco: precoServico.value,
+      Status: 'Agendado',
+    }
+
+    if (editando.value) {
+      await tenant.updateAgendamento(agendamentoEditando.value.id, dados)
+      notificationMessage.value = 'Agendamento atualizado com sucesso!'
+    } else {
+      await tenant.createAgendamento(dados)
+      notificationMessage.value = 'Agendamento criado com sucesso!'
+    }
+
+    notificationType.value = 'success'
+    showNotification.value = true
+    fecharModal()
+    await carregarDadosAgenda()
+  } catch (error) {
+    console.error('Erro ao salvar agendamento:', error)
+    notificationMessage.value = 'Erro ao salvar agendamento.'
+    notificationType.value = 'error'
+    showNotification.value = true
+  } finally {
+    savingLoading.value = false
+  }
 }
-const excluirAgendamento = () => {
-  fecharModal()
+
+const excluirAgendamento = async () => {
+  if (!agendamentoEditando.value) return
+
+  if (confirm('Tem certeza que deseja excluir este agendamento?')) {
+    deletingLoading.value = true
+    try {
+      await tenant.deleteAgendamento(agendamentoEditando.value.id)
+      notificationMessage.value = 'Agendamento excluído com sucesso!'
+      notificationType.value = 'success'
+      showNotification.value = true
+      fecharModal()
+      await carregarDadosAgenda()
+    } catch (error) {
+      console.error('Erro ao excluir agendamento:', error)
+      notificationMessage.value = 'Erro ao excluir agendamento.'
+      notificationType.value = 'error'
+      showNotification.value = true
+    } finally {
+      deletingLoading.value = false
+    }
+  }
 }
 const formatCurrency = (value) =>
   (value ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
@@ -631,6 +704,12 @@ onMounted(() => {
             </v-card>
           </v-container>
         </div>
+
+        <!-- PÁGINA DE HORÁRIOS -->
+        <HorariosView v-else-if="currentRoute === 'horarios'" />
+
+        <!-- PÁGINA DE SERVIÇOS -->
+        <ServicosView v-else-if="currentRoute === 'servicos'" />
 
         <!-- OUTRAS SEÇÕES (PLACEHOLDER) -->
         <div v-else>
