@@ -42,6 +42,11 @@ const router = createRouter({
       name: 'chat',
       component: ChatView,
       beforeEnter: authGuard
+    },
+    {
+      path: '/cliente/:barbeariaId',
+      name: 'ClientLandingPage',
+      component: () => import('../views/ClientLandingPageView.vue')
     }
   ]
 })

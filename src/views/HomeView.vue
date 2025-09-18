@@ -616,7 +616,7 @@ onMounted(() => {
                       <p class="kpi-label">PRÓXIMO CLIENTE</p>
                       <p class="text-h6 font-weight-bold">
                         {{ proximoAgendamento.NomeCliente }} às
-                        {{ proximoAgendamento.horarioFormatado }}
+                        {{ new Date(proximoAgendamento.DataHoraISO).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }}
                       </p>
                     </div>
                   </div>
