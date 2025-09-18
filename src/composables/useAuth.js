@@ -1,4 +1,4 @@
-// ARQUIVO: src/composables/useAuth.js (VERSÃO COM CRIAÇÃO DE DADOS PADRÃO)
+// ARQUIVO: src/composables/useAuth.js (VERSÃO COM ORDEM DE CRIAÇÃO CORRIGIDA)
 
 import { ref, computed, readonly } from 'vue'
 import {
@@ -14,7 +14,7 @@ import {
 import { doc, getDoc, setDoc, collection } from 'firebase/firestore'
 import { db } from '@/firebase'
 import { useRouter } from 'vue-router'
-import { createInitialTenantData } from '@/firebase/tenantSetup' // IMPORTAÇÃO DA NOVA FUNÇÃO
+import { createInitialTenantData } from '@/firebase/tenantSetup'
 
 // --- ESTADO REATIVO GLOBAL ---
 const user = ref(null)
@@ -39,7 +39,6 @@ onAuthStateChanged(auth, async (firebaseUser) => {
         }
       }
     } else {
-      // Se o usuário do Firebase existe mas não está no Firestore, cria os documentos necessários.
       const newUserDoc = await checkAndCreateUserOnFirstLogin(firebaseUser)
       if (newUserDoc) {
         userData.value = newUserDoc
@@ -66,8 +65,7 @@ export function useAuth() {
 
   const loginWithGoogle = async () => {
     try {
-      const provider = new GoogleAuthProvider()
-      await signInWithPopup(auth, provider)
+      await signInWithPopup(auth, new GoogleAuthProvider())
     } catch (error) {
       console.error('Erro no login com Google:', error)
       throw error
@@ -84,16 +82,13 @@ export function useAuth() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password)
       const firebaseUser = userCredential.user
 
-      // 1. Cria a barbearia
       const newBarbeariaId = await createNewBarbearia(nomeBarbearia)
       
-      // 2. Cria o perfil de usuário associado
       await createUserProfile(firebaseUser, {
         barbeariaId: newBarbeariaId,
         nome: nomeProprietario,
       })
 
-      // 3. CRIA OS DADOS PADRÃO PARA A NOVA BARBEARIA
       await createInitialTenantData(db, newBarbeariaId)
 
     } catch (error) {
@@ -182,11 +177,15 @@ async function checkAndCreateUserOnFirstLogin(firebaseUser) {
     targetBarbeariaId = await createNewBarbearia('Nova Barbearia (Google)')
   }
 
-  // CRIA OS DADOS PADRÃO ANTES DE RETORNAR
-  await createInitialTenantData(db, targetBarbeariaId)
-
-  return await createUserProfile(firebaseUser, {
+  // **ORDEM CORRIGIDA**
+  // 1. Primeiro, cria o perfil do usuário para que as regras de segurança funcionem.
+  const newUserDoc = await createUserProfile(firebaseUser, {
     barbeariaId: targetBarbeariaId,
     nome: firebaseUser.displayName || 'Novo Usuário',
   })
+
+  // 2. Depois, popula a barbearia com os dados iniciais.
+  await createInitialTenantData(db, targetBarbeariaId)
+
+  return newUserDoc
 }
