@@ -1,17 +1,18 @@
 // composables/useTenant.js
 import { computed, readonly } from 'vue'
 import { useAuth } from './useAuth'
-import { 
-  collection, 
-  doc, 
-  query, 
-  where, 
+import {
+  collection,
+  doc,
+  query,
+  where,
   orderBy,
   getDocs,
   getDoc,
   addDoc,
+  setDoc,
   updateDoc,
-  deleteDoc
+  deleteDoc,
 } from 'firebase/firestore'
 import { db } from '@/firebase'
 
@@ -38,48 +39,49 @@ export const useTenant = () => {
   }
 
   // MÉTODOS PARA AGENDAMENTOS
-  const agendamentosCollection = computed(() => getCollection('agendamentos'))
+  const agendamentosCollection = () => getCollection('agendamentos')
 
   const fetchAgendamentos = async (filters = {}) => {
-    let q = query(agendamentosCollection.value)
-    
+    let q = query(agendamentosCollection())
+
     // Aplicar filtros se fornecidos
     if (filters.status) {
       q = query(q, where('Status', '==', filters.status))
     }
     if (filters.dataInicio && filters.dataFim) {
-      q = query(q, 
+      q = query(
+        q,
         where('DataHoraISO', '>=', filters.dataInicio),
-        where('DataHoraISO', '<=', filters.dataFim)
+        where('DataHoraISO', '<=', filters.dataFim),
       )
     }
-    
+
     q = query(q, orderBy('DataHoraISO', 'asc'))
-    
+
     const snapshot = await getDocs(q)
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
   }
 
   const createAgendamento = async (dadosAgendamento) => {
-    const docRef = await addDoc(agendamentosCollection.value, {
+    const docRef = await addDoc(agendamentosCollection(), {
       ...dadosAgendamento,
       criadoEm: new Date().toISOString(),
-      atualizadoEm: new Date().toISOString()
-    });
+      atualizadoEm: new Date().toISOString(),
+    })
     // Retorna o documento recém-criado para atualização reativa na UI
-    const newDoc = await getDoc(docRef);
-    return { id: newDoc.id, ...newDoc.data() };
+    const newDoc = await getDoc(docRef)
+    return { id: newDoc.id, ...newDoc.data() }
   }
 
   const updateAgendamento = async (agendamentoId, dadosAtualizacao) => {
     const docRef = getTenantDoc('agendamentos', agendamentoId)
     await updateDoc(docRef, {
       ...dadosAtualizacao,
-      atualizadoEm: new Date().toISOString()
-    });
+      atualizadoEm: new Date().toISOString(),
+    })
     // Retorna o documento atualizado para atualização reativa na UI
-    const updatedDoc = await getDoc(docRef);
-    return { id: updatedDoc.id, ...updatedDoc.data() };
+    const updatedDoc = await getDoc(docRef)
+    return { id: updatedDoc.id, ...updatedDoc.data() }
   }
 
   const deleteAgendamento = async (agendamentoId) => {
@@ -94,26 +96,26 @@ export const useTenant = () => {
   }
 
   // MÉTODOS PARA SERVIÇOS
-  const servicosCollection = computed(() => getCollection('servicos'))
+  const servicosCollection = () => getCollection('servicos')
 
   const fetchServicos = async (apenasAtivos = true) => {
-    let q = query(servicosCollection.value)
-    
+    let q = query(servicosCollection())
+
     if (apenasAtivos) {
       q = query(q, where('ativo', '==', true))
     }
-    
+
     q = query(q, orderBy('nome', 'asc'))
-    
+
     const snapshot = await getDocs(q)
-    return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
   }
 
   const createServico = async (dadosServico) => {
-    const docRef = await addDoc(servicosCollection.value, {
+    const docRef = await addDoc(servicosCollection(), {
       ...dadosServico,
       ativo: true,
-      criadoEm: new Date().toISOString()
+      criadoEm: new Date().toISOString(),
     })
     return docRef.id
   }
@@ -122,7 +124,7 @@ export const useTenant = () => {
     const docRef = getTenantDoc('servicos', servicoId)
     await updateDoc(docRef, {
       ...dadosAtualizacao,
-      atualizadoEm: new Date().toISOString()
+      atualizadoEm: new Date().toISOString(),
     })
   }
 
@@ -140,7 +142,7 @@ export const useTenant = () => {
 
   const updateHorario = async (diaDaSemana, dadosHorario) => {
     const docRef = getTenantDoc('horarios', String(diaDaSemana))
-    await updateDoc(docRef, dadosHorario)
+    await setDoc(docRef, dadosHorario, { merge: true })
   }
 
   const fetchTodosHorarios = async () => {
@@ -154,72 +156,49 @@ export const useTenant = () => {
   // MÉTODOS PARA CONFIGURAÇÕES DA BARBEARIA
   const updateBarbeariaConfig = async (novasConfiguracoes) => {
     if (!barbeariaId.value) return
-    
+
     const docRef = doc(db, 'barbearias', barbeariaId.value)
     await updateDoc(docRef, {
       configuracoes: novasConfiguracoes,
-      atualizadoEm: new Date().toISOString()
+      atualizadoEm: new Date().toISOString(),
     })
   }
 
   const updateBarbeariaNome = async (novoNome) => {
     if (!barbeariaId.value) return
-    
+
     const docRef = doc(db, 'barbearias', barbeariaId.value)
     await updateDoc(docRef, {
       nome: novoNome,
-      atualizadoEm: new Date().toISOString()
+      atualizadoEm: new Date().toISOString(),
     })
   }
 
   // UTILITÁRIOS
   const formatCurrency = (valor) => {
-    return (valor || 0).toLocaleString('pt-BR', { 
-      style: 'currency', 
-      currency: 'BRL' 
-    })
-  }
-
-  const formatDateTime = (dataISO) => {
-    if (!dataISO) return ''
-    const data = new Date(dataISO)
-    return new Intl.DateTimeFormat('pt-BR', { 
-      dateStyle: 'medium', 
-      timeStyle: 'short',
-      timeZone: 'America/Sao_Paulo' 
-    }).format(data)
-  }
-
-  const formatDate = (dataISO) => {
-    if (!dataISO) return ''
-    const data = new Date(dataISO)
-    return data.toLocaleDateString('pt-BR')
-  }
-
-  const formatTime = (dataISO) => {
-    if (!dataISO) return ''
-    const data = new Date(dataISO)
-    return data.toLocaleTimeString('pt-BR', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return (valor || 0).toLocaleString('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
     })
   }
 
   // Calcular estatísticas do dia
   const calcularEstatisticasDia = (agendamentos, data) => {
     const dataStr = data.toISOString().split('T')[0]
-    const agendamentosDoDia = agendamentos.filter(apt => 
-      new Date(apt.DataHoraISO).toISOString().split('T')[0] === dataStr
+    const agendamentosDoDia = agendamentos.filter(
+      (apt) => new Date(apt.DataHoraISO).toISOString().split('T')[0] === dataStr,
     )
 
-    const agendados = agendamentosDoDia.filter(apt => apt.Status === 'Agendado')
+    const agendados = agendamentosDoDia.filter(
+      (apt) => apt.Status === 'Agendado' || apt.Status === 'Concluído',
+    )
     const faturamento = agendados.reduce((sum, apt) => sum + (apt.preco || 0), 0)
 
     return {
       total: agendamentosDoDia.length,
       agendados: agendados.length,
       faturamento,
-      faturamentoFormatado: formatCurrency(faturamento)
+      faturamentoFormatado: formatCurrency(faturamento),
     }
   }
 
@@ -251,11 +230,8 @@ export const useTenant = () => {
     updateBarbeariaConfig,
     updateBarbeariaNome,
 
-    // Utilitários a
+    // Utilitários
     formatCurrency,
-    formatDateTime,
-    formatDate,
-    formatTime,
-    calcularEstatisticasDia
+    calcularEstatisticasDia,
   }
 }

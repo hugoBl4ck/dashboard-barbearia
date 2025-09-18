@@ -23,12 +23,12 @@
               density="compact"
               hide-details
               prepend-inner-icon="mdi-magnify"
-              style="max-width: 300px;"
+              style="max-width: 300px"
             ></v-text-field>
           </v-card-title>
-          
+
           <v-divider></v-divider>
-          
+
           <!-- Nova VDataTableServer com expansão -->
           <v-data-table
             v-model:expanded="expanded"
@@ -51,21 +51,23 @@
                       class="expanded-item"
                     >
                       <v-list-item-title class="d-flex align-center">
-                          <v-chip size="small" class="mr-4">{{ agendamento.DataHoraFormatada.split(' ')[0] }}</v-chip>
-                          <div>
-                            <div>{{ agendamento.servicoNome }}</div>
-                            <!-- CHIP DE STATUS VISUAL -->
-                            <v-chip
-                              :color="getStatusColor(agendamento.Status)"
-                              size="x-small"
-                              class="mt-1"
-                              label
-                            >
-                              {{ agendamento.Status }}
-                            </v-chip>
-                          </div>
-                        </v-list-item-title>
-                      
+                        <v-chip size="small" class="mr-4">{{
+                          agendamento.DataHoraFormatada.split(' ')[0]
+                        }}</v-chip>
+                        <div>
+                          <div>{{ agendamento.servicoNome }}</div>
+                          <!-- CHIP DE STATUS VISUAL -->
+                          <v-chip
+                            :color="getStatusColor(agendamento.Status)"
+                            size="x-small"
+                            class="mt-1"
+                            label
+                          >
+                            {{ agendamento.Status }}
+                          </v-chip>
+                        </div>
+                      </v-list-item-title>
+
                       <template v-slot:append>
                         <div class="d-flex align-center">
                           <!-- Campo de Preço Editável -->
@@ -76,7 +78,7 @@
                             density="compact"
                             hide-details
                             prefix="R$"
-                            style="width: 120px;"
+                            style="width: 120px"
                             class="mr-2"
                             @click.stop
                           ></v-text-field>
@@ -99,16 +101,17 @@
             </template>
 
             <!-- Slots para formatação (iguais ao anterior) -->
-             <template v-slot:item.nome="{ item }">
+            <template v-slot:item.nome="{ item }">
               <div class="font-weight-bold">{{ item.nome }}</div>
             </template>
             <template v-slot:item.totalGasto="{ item }">
-              <span class="text-green font-weight-medium">{{ item.totalGasto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}</span>
+              <span class="text-green font-weight-medium">{{
+                item.totalGasto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+              }}</span>
             </template>
             <template v-slot:item.ultimoServico="{ item }">
               <v-chip size="small" variant="tonal">{{ item.ultimoServico }}</v-chip>
             </template>
-
           </v-data-table>
         </v-card>
       </v-col>
@@ -117,24 +120,34 @@
 </template>
 
 <style scoped>
-.page-container { font-family: 'Poppins', sans-serif; }
-.data-table-card { border-radius: 12px; }
-.expanded-list { background-color: rgba(var(--v-theme-on-surface), 0.04); }
-.expanded-item { border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08); }
-.expanded-item:last-child { border-bottom: none; }
+.page-container {
+  font-family: 'Poppins', sans-serif;
+}
+.data-table-card {
+  border-radius: 12px;
+}
+.expanded-list {
+  background-color: rgba(var(--v-theme-on-surface), 0.04);
+}
+.expanded-item {
+  border-bottom: 1px solid rgba(var(--v-theme-on-surface), 0.08);
+}
+.expanded-item:last-child {
+  border-bottom: none;
+}
 </style>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
-import { useTenant } from '@/composables/useTenant';
+import { ref, onMounted, computed } from 'vue'
+import { useTenant } from '@/composables/useTenant'
 
-const loading = ref(true);
-const allAppointments = ref([]);
-const search = ref('');
-const expanded = ref([]); // Controla quais linhas estão expandidas
+const loading = ref(true)
+const allAppointments = ref([])
+const search = ref('')
+const expanded = ref([]) // Controla quais linhas estão expandidas
 
 // Usar o composable para acesso aos dados do tenant
-const { fetchAgendamentos, updateAgendamento, formatCurrency } = useTenant();
+const { fetchAgendamentos, updateAgendamento } = useTenant()
 
 const headers = [
   { title: 'Nome do Cliente', key: 'nome', align: 'start' },
@@ -142,44 +155,53 @@ const headers = [
   { title: 'Total de Visitas', key: 'visitas', align: 'center' },
   { title: 'Total Gasto', key: 'totalGasto', align: 'end' },
   { title: 'Última Visita', key: 'ultimaVisita', align: 'end' },
-  { title: 'Ações', key: 'data-table-expand' },
-];
+  { title: 'Ações', key: 'data-table-expand', align: 'center' },
+]
 
 onMounted(async () => {
-  loading.value = true;
+  loading.value = true
   try {
     // Busca os agendamentos usando a função segura do useTenant
-    const agendamentos = await fetchAgendamentos();
-    allAppointments.value = agendamentos.map(agendamento => ({
+    const agendamentos = await fetchAgendamentos()
+    allAppointments.value = agendamentos.map((agendamento) => ({
       ...agendamento,
       // Cria um campo 'precoEditavel' para o v-model não modificar o dado original diretamente
-      precoEditavel: agendamento.preco || 0
-    }));
+      precoEditavel: agendamento.preco || 0,
+    }))
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-});
+})
 
 const clientData = computed(() => {
-  if (allAppointments.value.length === 0) return [];
-  const clientsByPhone = allAppointments.value.reduce((acc, apt) => {
-    const phone = apt.TelefoneCliente;
-    if (!phone) return acc;
-    if (!acc[phone]) {
-      acc[phone] = { nome: apt.NomeCliente, telefone: phone, agendamentos: [] };
-    }
-    acc[phone].nome = apt.NomeCliente; 
-    acc[phone].agendamentos.push(apt);
-    return acc;
-  }, {});
+  if (allAppointments.value.length === 0) return []
+  const clientsByPhone = allAppointments.value.reduce(
+    (acc, apt) => {
+      const phone = apt.TelefoneCliente
+      if (!phone) return acc
+      if (!acc[phone]) {
+        acc[phone] = { nome: apt.NomeCliente, telefone: phone, agendamentos: [] }
+      }
+      acc[phone].nome = apt.NomeCliente
+      acc[phone].agendamentos.push(apt)
+      return acc
+    },
+    {},
+  )
 
-  return Object.values(clientsByPhone).map(client => {
-    const agendamentosOrdenados = client.agendamentos.sort((a, b) => new Date(b.DataHoraISO) - new Date(a.DataHoraISO));
-    const ultimoAgendamento = agendamentosOrdenados[0];
-    // Considera agendamentos com status 'Agendado' ou 'Concluído' para o total gasto
-    const agendamentosValidos = agendamentosOrdenados.filter(apt => apt.Status === 'Agendado' || apt.Status === 'Concluído');
-    const totalGasto = agendamentosValidos.reduce((sum, apt) => sum + (apt.preco || 0), 0);
-    
+  return Object.values(clientsByPhone).map((client) => {
+    const agendamentosOrdenados = client.agendamentos.sort((a, b) => {
+      const dateA = a.DataHoraISO ? new Date(a.DataHoraISO).getTime() : 0
+      const dateB = b.DataHoraISO ? new Date(b.DataHoraISO).getTime() : 0
+      return dateB - dateA
+    })
+    const ultimoAgendamento = agendamentosOrdenados[0]
+    // Considera agendamentos com status 'Concluído' ou 'Agendado' para o total gasto
+    const agendamentosValidos = agendamentosOrdenados.filter(
+      (apt) => apt.Status === 'Concluído' || apt.Status === 'Agendado',
+    )
+    const totalGasto = agendamentosValidos.reduce((sum, apt) => sum + (apt.preco || 0), 0)
+
     return {
       nome: client.nome,
       telefone: client.telefone,
@@ -188,34 +210,34 @@ const clientData = computed(() => {
       ultimoServico: ultimoAgendamento?.servicoNome || 'N/A',
       ultimaVisita: new Date(ultimoAgendamento.DataHoraISO).toLocaleDateString('pt-BR'),
       // Passa a lista completa de agendamentos para a linha expandida
-      agendamentos: agendamentosOrdenados
-    };
-  });
-});
+      agendamentos: agendamentosOrdenados,
+    }
+  })
+})
 
 // NOVA FUNÇÃO PARA SALVAR O PREÇO
 const salvarPreco = async (agendamento) => {
   try {
     // Usa a função segura do useTenant para atualizar
     await updateAgendamento(agendamento.id, {
-      preco: agendamento.precoEditavel
-    });
-    
+      preco: agendamento.precoEditavel,
+    })
+
     // Atualiza o estado local para refletir a mudança sem precisar recarregar tudo
-    agendamento.preco = agendamento.precoEditavel;
-    
-    alert('Preço atualizado com sucesso!');
+    agendamento.preco = agendamento.precoEditavel
+
+    alert('Preço atualizado com sucesso!')
   } catch (error) {
-    console.error("Erro ao atualizar o preço:", error);
-    alert('Ocorreu um erro ao salvar. Tente novamente.');
+    console.error('Erro ao atualizar o preço:', error)
+    alert('Ocorreu um erro ao salvar. Tente novamente.')
     // Reverte a mudança visual em caso de erro
-    agendamento.precoEditavel = agendamento.preco;
+    agendamento.precoEditavel = agendamento.preco
   }
-};
+}
 const getStatusColor = (status) => {
-  if (status === 'Agendado') return 'blue';
-  if (status === 'Concluído') return 'success';
-  if (status === 'Cancelado') return 'red';
-  return 'grey';
-};
+  if (status === 'Agendado') return 'blue'
+  if (status === 'Concluído') return 'success'
+  if (status === 'Cancelado') return 'red'
+  return 'grey'
+}
 </script>
