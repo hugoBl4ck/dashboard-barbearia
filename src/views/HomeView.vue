@@ -1,14 +1,15 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import { useTenant } from '@/composables/useTenant'
-import { useRouter } from 'vue-router'
 
 // --- HOOKS ---
-const { user, logout: authLogout, isAuthenticated, barbeariaInfo } = useAuth()
-const { fetchAgendamentos, fetchServicos, calcularEstatisticasDia, fetchHorario, isTenantReady } =
-  useTenant()
-const router = useRouter()
+const auth = useAuth() // Mantém a reatividade
+const tenant = useTenant()
+
+// --- REFS COMPUTADOS PARA FACILIDADE ---
+const user = computed(() => auth.user)
+const barbeariaInfo = computed(() => auth.barbeariaInfo)
 
 // --- ESTADO GLOBAL ---
 const loading = ref(true) // Carregamento inicial da página
@@ -41,16 +42,11 @@ const deletingLoading = ref(false)
 const showNotification = ref(false)
 const notificationMessage = ref('')
 const notificationType = ref('success')
-const notificacoesCount = ref(3) // Exemplo
+const notificacoesCount = ref(3)
 
 // --- PROPRIEDADES COMPUTADAS ---
 const dataFormatada = computed(() => {
-  const options = {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  }
+  const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }
   const [diaDaSemana, resto] = new Date(dataSelecionada.value)
     .toLocaleDateString('pt-BR', options)
     .split(', ')
@@ -60,38 +56,29 @@ const dataFormatada = computed(() => {
   }
 })
 
-// --- MÉTODOS ---
-
-onMounted(async () => {
-  // O watcher do isTenantReady vai chamar carregarDadosIniciais
-})
-
+// --- WATCHERS ---
 watch(
-  isTenantReady,
+  tenant.isTenantReady,
   (ready) => {
-    if (ready) {
-      carregarDadosIniciais()
-    }
+    if (ready) carregarDadosIniciais()
   },
   { immediate: true },
 )
 
-watch(dataSelecionada, () => {
-  carregarDadosAgenda()
-})
+watch(dataSelecionada, () => carregarDadosAgenda())
 
+// --- FUNÇÕES ---
 const carregarDadosIniciais = async () => {
   loading.value = true
-  listaServicos.value = await fetchServicos()
+  listaServicos.value = await tenant.fetchServicos()
   await carregarDadosAgenda()
   loading.value = false
 }
 
 const carregarDadosAgenda = async () => {
   loadingData.value = true
-
   const diaDaSemana = dataSelecionada.value.getDay()
-  const configHorarios = await fetchHorario(diaDaSemana)
+  const configHorarios = await tenant.fetchHorario(diaDaSemana)
 
   if (!configHorarios || !configHorarios.InicioManha) {
     estaFechado.value = true
@@ -106,12 +93,12 @@ const carregarDadosAgenda = async () => {
   const fimDia = new Date(dataSelecionada.value)
   fimDia.setHours(23, 59, 59, 999)
 
-  const agendamentos = await fetchAgendamentos({
+  const agendamentos = await tenant.fetchAgendamentos({
     dataInicio: inicioDia.toISOString(),
     dataFim: fimDia.toISOString(),
   })
 
-  const stats = calcularEstatisticasDia(agendamentos, dataSelecionada.value)
+  const stats = tenant.calcularEstatisticasDia(agendamentos, dataSelecionada.value)
   estatisticasDia.value = {
     agendados: stats.agendados,
     faturamentoFormatado: stats.faturamentoFormatado,
@@ -164,7 +151,7 @@ const carregarDadosAgenda = async () => {
         detalhes: agendamento.servicoNome,
         preco: agendamento.preco,
         status: agendamento.Status,
-        agendamento: agendamento,
+        agendamento,
       })
     } else {
       slots.push({
@@ -184,34 +171,21 @@ const carregarDadosAgenda = async () => {
   loadingData.value = false
 }
 
-const navigateTo = (route) => {
-  currentRoute.value = route
-  // Em um app real, você usaria router.push(`/${route}`)
-}
-
+const navigateTo = (route) => (currentRoute.value = route)
 const abrirLandingPage = () => window.open(`/cliente/minha-barbearia`, '_blank')
-
-const logout = async () => {
-  await authLogout()
-}
-
+const logout = async () => await auth.logout()
 const mudarDia = (dias) => {
   const novaData = new Date(dataSelecionada.value)
   novaData.setDate(novaData.getDate() + dias)
   dataSelecionada.value = novaData
   carregarDadosAgenda()
 }
-
-const irParaHoje = () => {
-  dataSelecionada.value = new Date()
-}
-
+const irParaHoje = () => (dataSelecionada.value = new Date())
 const abrirModalParaNovoVazio = () => {
   editando.value = false
-  horarioModal.value = '12:00' // Exemplo
+  horarioModal.value = '12:00'
   modalAberto.value = true
 }
-
 const handleItemClick = (slot) => {
   if (slot.tipo === 'agendamento') {
     editando.value = true
@@ -235,15 +209,13 @@ const handleItemClick = (slot) => {
 
 const fecharModal = () => (modalAberto.value = false)
 const salvarAgendamento = () => {
-  /* Lógica de salvar */ fecharModal()
+  fecharModal()
 }
 const excluirAgendamento = () => {
-  /* Lógica de excluir */ fecharModal()
+  fecharModal()
 }
-
 const formatCurrency = (value) =>
   (value ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-
 const getCurrentRouteTitle = () =>
   currentRoute.value.charAt(0).toUpperCase() + currentRoute.value.slice(1)
 
@@ -252,12 +224,8 @@ const getSlotVariant = (slot) => (slot.tipo === 'livre' ? 'tonal' : 'elevated')
 const getSlotColor = (slot) => (slot.tipo === 'agendamento' ? 'primary' : undefined)
 const getTimeTextColor = (slot) => (slot.tipo === 'agendamento' ? 'text-white' : '')
 const getDetailsTextColor = (slot) => (slot.tipo === 'agendamento' ? 'text-white' : '')
-const getPriceTextColor = (slot) =>
-  slot.tipo === 'agendamento' ? 'text-white' : 'text-green'
-const getChipColor = (status) => {
-  if (status === 'Agendado') return 'blue-lighten-5'
-  return 'green-lighten-5'
-}
+const getPriceTextColor = (slot) => (slot.tipo === 'agendamento' ? 'text-white' : 'text-green')
+const getChipColor = (status) => (status === 'Agendado' ? 'blue-lighten-5' : 'green-lighten-5')
 const getChipIcon = (status) => (status === 'Livre' ? 'mdi-check' : 'mdi-account')
 const getChipIconColor = (status) => (status === 'Livre' ? 'green' : 'blue')
 const getChipTextColor = (status) => (status === 'Livre' ? 'text-green' : 'text-blue')
