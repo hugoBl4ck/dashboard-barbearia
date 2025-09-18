@@ -26,37 +26,42 @@ const loading = ref(true)
 const auth = getAuth()
 onAuthStateChanged(auth, async (firebaseUser) => {
   loading.value = true
-  if (firebaseUser) {
-    const userDocRef = doc(db, 'usuarios', firebaseUser.uid)
-    const userDoc = await getDoc(userDocRef)
-    if (userDoc.exists()) {
-      const uData = userDoc.data()
-      userData.value = uData
-      if (uData.barbeariaId) {
-        const barbeariaDoc = await getDoc(doc(db, 'barbearias', uData.barbeariaId))
-        if (barbeariaDoc.exists()) {
-          barbeariaInfo.value = { id: barbeariaDoc.id, ...barbeariaDoc.data() }
-        }
-      }
-    } else {
-      const newUserDoc = await checkAndCreateUserOnFirstLogin(firebaseUser)
-      if (newUserDoc) {
-        userData.value = newUserDoc
-        if (newUserDoc.barbeariaId) {
-          const barbeariaDoc = await getDoc(doc(db, 'barbearias', newUserDoc.barbeariaId))
+  try {
+    if (firebaseUser) {
+      const userDocRef = doc(db, 'usuarios', firebaseUser.uid)
+      const userDoc = await getDoc(userDocRef)
+      if (userDoc.exists()) {
+        const uData = userDoc.data()
+        userData.value = uData
+        if (uData.barbeariaId) {
+          const barbeariaDoc = await getDoc(doc(db, 'barbearias', uData.barbeariaId))
           if (barbeariaDoc.exists()) {
             barbeariaInfo.value = { id: barbeariaDoc.id, ...barbeariaDoc.data() }
           }
         }
+      } else {
+        const newUserDoc = await checkAndCreateUserOnFirstLogin(firebaseUser)
+        if (newUserDoc) {
+          userData.value = newUserDoc
+          if (newUserDoc.barbeariaId) {
+            const barbeariaDoc = await getDoc(doc(db, 'barbearias', newUserDoc.barbeariaId))
+            if (barbeariaDoc.exists()) {
+              barbeariaInfo.value = { id: barbeariaDoc.id, ...barbeariaDoc.data() }
+            }
+          }
+        }
       }
+      user.value = firebaseUser
+    } else {
+      user.value = null
+      userData.value = null
+      barbeariaInfo.value = null
     }
-    user.value = firebaseUser
-  } else {
-    user.value = null
-    userData.value = null
-    barbeariaInfo.value = null
+  } catch (e) {
+    console.error('Erro crítico no onAuthStateChanged:', e)
+  } finally {
+    loading.value = false
   }
-  loading.value = false
 })
 
 // --- O COMPOSABLE ---
