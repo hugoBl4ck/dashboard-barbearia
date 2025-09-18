@@ -13,6 +13,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  onSnapshot,
 } from 'firebase/firestore'
 import { db } from '@/firebase'
 
@@ -71,6 +72,35 @@ export const useTenant = () => {
     } catch (error) {
       console.error('Erro ao buscar agendamentos:', error)
       throw new Error(`Erro ao carregar agendamentos: ${error.message}`)
+    }
+  }
+
+  const listenToAgendamentos = (callback, filters = {}) => {
+    try {
+      let q = query(agendamentosCollection())
+
+      if (filters.dataInicio && filters.dataFim) {
+        q = query(
+          q,
+          where('DataHoraISO', '>=', filters.dataInicio),
+          where('DataHoraISO', '<=', filters.dataFim),
+        )
+      }
+
+      q = query(q, orderBy('DataHoraISO', 'asc'))
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const result = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+        console.log(`[REALTIME UPDATE] ${result.length} agendamentos recebidos.`)
+        callback(result)
+      }, (error) => {
+        console.error('Erro no listener de agendamentos:', error)
+      });
+
+      return unsubscribe;
+    } catch (error) {
+      console.error('Erro ao iniciar o listener de agendamentos:', error)
+      throw error
     }
   }
 
@@ -315,6 +345,7 @@ export const useTenant = () => {
 
     // Métodos de agendamentos
     fetchAgendamentos,
+    listenToAgendamentos,
     createAgendamento,
     updateAgendamento,
     deleteAgendamento,

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import { useTenant } from '@/composables/useTenant'
 import HorariosView from './HorariosView.vue'
@@ -26,6 +26,7 @@ const agendaDoDia = ref([])
 const estatisticasDia = ref({ agendados: 0, faturamentoFormatado: 'R$ 0,00' })
 const proximoAgendamento = ref(null)
 const estaFechado = ref(false)
+let unsubscribeAgendamentos = null // Para guardar a função de unsubscribe do listener
 
 // --- ESTADO DE ERRO ---
 const errorState = ref({
@@ -65,7 +66,6 @@ const dataFormatada = computed(() => {
   }
 })
 
-// CORREÇÃO: Computed para verificar se o app está pronto
 const isAppReady = computed(() => {
   return auth.isReady.value && !auth.error.value
 })
@@ -79,7 +79,7 @@ const carregarDadosIniciais = async () => {
     errorState.value.hasError = false
 
     listaServicos.value = await tenant.fetchServicos()
-    await carregarDadosAgenda()
+    carregarDadosAgenda() // Não precisa mais de await aqui
 
     console.log('[DADOS INICIAIS CARREGADOS]')
   } catch (error) {
@@ -95,6 +95,11 @@ const carregarDadosIniciais = async () => {
 const carregarDadosAgenda = async () => {
   if (!isAppReady.value) return
 
+  if (unsubscribeAgendamentos) {
+    unsubscribeAgendamentos()
+    unsubscribeAgendamentos = null
+  }
+
   loadingData.value = true
 
   try {
@@ -106,6 +111,7 @@ const carregarDadosAgenda = async () => {
       agendaDoDia.value = []
       estatisticasDia.value = { agendados: 0, faturamentoFormatado: 'R$ 0,00' }
       proximoAgendamento.value = null
+      loadingData.value = false
       return
     }
 
@@ -115,94 +121,71 @@ const carregarDadosAgenda = async () => {
     const fimDia = new Date(dataSelecionada.value)
     fimDia.setHours(23, 59, 59, 999)
 
-    const agendamentos = await tenant.fetchAgendamentos({
+    unsubscribeAgendamentos = tenant.listenToAgendamentos((agendamentos) => {
+      const stats = tenant.calcularEstatisticasDia(agendamentos, dataSelecionada.value)
+      estatisticasDia.value = {
+        agendados: stats.agendados,
+        faturamentoFormatado: stats.faturamentoFormatado,
+      }
+
+      proximoAgendamento.value =
+        agendamentos
+          .filter((a) => new Date(a.DataHoraISO) > new Date() && a.Status === 'Agendado')
+          .sort((a, b) => new Date(a.DataHoraISO).getTime() - new Date(b.DataHoraISO).getTime())[0] || null
+
+      const slots = []
+      const agendamentosMap = new Map(agendamentos.map((a) => [new Date(a.DataHoraISO).getTime(), a]))
+      const intervalo = barbeariaInfo.value?.configuracoes?.intervaloAgendamento || 30
+
+      const parseTime = (str) => (str ? parseInt(str.split(':')[0]) * 60 + parseInt(str.split(':')[1]) : 0)
+      const minutoInicio = parseTime(configHorarios.InicioManha)
+      const minutoFim = parseTime(configHorarios.FimTarde || configHorarios.FimManha)
+      const minutoAlmocoInicio = parseTime(configHorarios.InicioTarde ? configHorarios.FimManha : '')
+      const minutoAlmocoFim = parseTime(configHorarios.InicioTarde)
+
+      for (let minuto = minutoInicio; minuto < minutoFim; minuto += intervalo) {
+        if (minutoAlmocoInicio && minutoAlmocoFim && minuto >= minutoAlmocoInicio && minuto < minutoAlmocoFim) continue
+
+        const dataSlot = new Date(dataSelecionada.value)
+        dataSlot.setHours(Math.floor(minuto / 60), minuto % 60, 0, 0)
+        const timestamp = dataSlot.getTime()
+        const agendamento = agendamentosMap.get(timestamp)
+        const estaNoPassado = timestamp < new Date().getTime() && dataSelecionada.value.toDateString() === new Date().toDateString()
+
+        if (agendamento) {
+          slots.push({
+            timestamp,
+            horarioFormatado: new Date(agendamento.DataHoraISO).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            tipo: estaNoPassado ? 'passado' : 'agendamento',
+            titulo: agendamento.NomeCliente,
+            detalhes: agendamento.servicoNome,
+            preco: agendamento.preco,
+            status: agendamento.Status,
+            agendamento,
+          })
+        } else {
+          slots.push({
+            timestamp,
+            horarioFormatado: dataSlot.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+            tipo: estaNoPassado ? 'passado' : 'livre',
+            titulo: estaNoPassado ? 'Encerrado' : 'Disponível',
+            status: estaNoPassado ? 'Encerrado' : 'Livre',
+          })
+        }
+      }
+      agendaDoDia.value = slots
+      loadingData.value = false
+    }, {
       dataInicio: inicioDia.toISOString(),
       dataFim: fimDia.toISOString(),
     })
-
-    const stats = tenant.calcularEstatisticasDia(agendamentos, dataSelecionada.value)
-    estatisticasDia.value = {
-      agendados: stats.agendados,
-      faturamentoFormatado: stats.faturamentoFormatado,
-    }
-
-    proximoAgendamento.value =
-      agendamentos
-        .filter((a) => new Date(a.DataHoraISO) > new Date() && a.Status === 'Agendado')
-        .sort((a, b) => new Date(a.DataHoraISO).getTime() - new Date(b.DataHoraISO).getTime())[0] ||
-      null
-
-    // Gerar slots da agenda
-    const slots = []
-    const agendamentosMap = new Map(agendamentos.map((a) => [new Date(a.DataHoraISO).getTime(), a]))
-    const intervalo = barbeariaInfo.value?.configuracoes?.intervaloAgendamento || 30
-
-    const parseTime = (str) =>
-      str ? parseInt(str.split(':')[0]) * 60 + parseInt(str.split(':')[1]) : 0
-    const minutoInicio = parseTime(configHorarios.InicioManha)
-    const minutoFim = parseTime(configHorarios.FimTarde || configHorarios.FimManha)
-    const minutoAlmocoInicio = parseTime(configHorarios.InicioTarde ? configHorarios.FimManha : '')
-    const minutoAlmocoFim = parseTime(configHorarios.InicioTarde)
-
-    for (let minuto = minutoInicio; minuto < minutoFim; minuto += intervalo) {
-      if (
-        minutoAlmocoInicio &&
-        minutoAlmocoFim &&
-        minuto >= minutoAlmocoInicio &&
-        minuto < minutoAlmocoFim
-      )
-        continue
-
-      const dataSlot = new Date(dataSelecionada.value)
-      dataSlot.setHours(Math.floor(minuto / 60), minuto % 60, 0, 0)
-      const timestamp = dataSlot.getTime()
-      const agendamento = agendamentosMap.get(timestamp)
-      const estaNoPassado =
-        timestamp < new Date().getTime() &&
-        dataSelecionada.value.toDateString() === new Date().toDateString()
-
-      if (agendamento) {
-        slots.push({
-          timestamp,
-          horarioFormatado: new Date(agendamento.DataHoraISO).toLocaleTimeString('pt-BR', {
-            hour: '2-digit',
-            minute: '2-digit',
-          }),
-          tipo: estaNoPassado ? 'passado' : 'agendamento',
-          titulo: agendamento.NomeCliente,
-          detalhes: agendamento.servicoNome,
-          preco: agendamento.preco,
-          status: agendamento.Status,
-          agendamento,
-        })
-      } else {
-        slots.push({
-          timestamp,
-          horarioFormatado: dataSlot.toLocaleTimeString('pt-BR', {
-            hour: '2-digit',
-            minute: '2-digit',
-          }),
-          tipo: estaNoPassado ? 'passado' : 'livre',
-          titulo: estaNoPassado ? 'Encerrado' : 'Disponível',
-          status: estaNoPassado ? 'Encerrado' : 'Livre',
-        })
-      }
-    }
-
-    agendaDoDia.value = slots
   } catch (error) {
     console.error('Erro ao carregar agenda:', error)
-    errorState.value = {
-      hasError: true,
-      message: 'Erro ao carregar agenda do dia',
-      canRetry: true,
-    }
-  } finally {
+    errorState.value = { hasError: true, message: 'Erro ao carregar agenda do dia', canRetry: true }
     loadingData.value = false
   }
 }
 
-// NOVA FUNÇÃO: Retry para recarregar dados
 const retryLoadData = async () => {
   errorState.value.hasError = false
   appLoading.value = true
@@ -211,82 +194,67 @@ const retryLoadData = async () => {
 }
 
 // --- WATCHERS ---
-// CORREÇÃO: Usar isAppReady ao invés de tenant.isTenantReady
-watch(
-  isAppReady,
-  (ready) => {
-    if (ready) {
-      appLoading.value = false
-      carregarDadosIniciais()
-    }
-  },
-  { immediate: true },
-)
+watch(isAppReady, (ready) => {
+  if (ready) {
+    appLoading.value = false
+    carregarDadosIniciais()
+  }
+}, { immediate: true })
 
-// Observar mudanças na data
 watch(dataSelecionada, () => {
   if (isAppReady.value) {
     carregarDadosAgenda()
   }
 })
 
-// Observar erros de auth
-watch(
-  () => auth.error.value,
-  (error) => {
-    if (error) {
-      errorState.value = {
-        hasError: true,
-        message: `Erro de autenticação: ${error}`,
-        canRetry: true,
-      }
-      appLoading.value = false
-    } else {
-      errorState.value = {
-        hasError: false,
-        message: '',
-        canRetry: false,
-      }
-    }
-  },
-)
+watch(() => auth.error.value, (error) => {
+  if (error) {
+    errorState.value = { hasError: true, message: `Erro de autenticação: ${error}`, canRetry: true }
+    appLoading.value = false
+  } else {
+    errorState.value = { hasError: false, message: '', canRetry: false }
+  }
+})
 
-// Watcher para auto-preencher o preço ao selecionar um serviço
 watch(servicoSelecionado, (novoServico) => {
   if (novoServico && !editando.value) {
-    // Apenas preenche se for um novo agendamento
     precoServico.value = novoServico.preco
   }
 })
 
 const navigateTo = (route) => (currentRoute.value = route)
+
 const abrirLandingPage = () => {
   if (auth.barbeariaId.value) {
-    window.open(`/cliente/${auth.barbeariaId.value}`, '_blank');
+    window.open(`/cliente/${auth.barbeariaId.value}`, '_blank')
   } else {
-    alert('ID da barbearia não encontrado. Não é possível abrir a landing page.');
+    alert('ID da barbearia não encontrado. Não é possível abrir a landing page.')
   }
 }
+
 const logout = async () => await auth.logout()
+
 const mudarDia = (dias) => {
   const novaData = new Date(dataSelecionada.value)
   novaData.setDate(novaData.getDate() + dias)
   dataSelecionada.value = novaData
 }
+
 const irParaHoje = () => (dataSelecionada.value = new Date())
+
 const abrirModalParaNovoVazio = () => {
   editando.value = false
   horarioModal.value = '12:00'
   modalAberto.value = true
 }
+
 const handleItemClick = (slot) => {
   if (slot.tipo === 'agendamento') {
     editando.value = true
     agendamentoEditando.value = slot.agendamento
     nomeCliente.value = slot.agendamento.NomeCliente
     telefoneCliente.value = slot.agendamento.TelefoneCliente
-    servicoSelecionado.value =
-      listaServicos.value.find((s) => s.id === slot.agendamento.servicoId) || null
+    servicoSelecionado.value = listaServicos.value.find((s) => s.id === slot.agendamento.servicoId) || null
     precoServico.value = slot.agendamento.preco
   } else {
     editando.value = false
@@ -337,7 +305,7 @@ const salvarAgendamento = async () => {
     notificationType.value = 'success'
     showNotification.value = true
     fecharModal()
-    await carregarDadosAgenda()
+    // Não precisa mais chamar carregarDadosAgenda() aqui, o listener faz o trabalho
   } catch (error) {
     console.error('Erro ao salvar agendamento:', error)
     notificationMessage.value = 'Erro ao salvar agendamento.'
@@ -359,7 +327,7 @@ const excluirAgendamento = async () => {
       notificationType.value = 'success'
       showNotification.value = true
       fecharModal()
-      await carregarDadosAgenda()
+      // Não precisa mais chamar carregarDadosAgenda() aqui, o listener faz o trabalho
     } catch (error) {
       console.error('Erro ao excluir agendamento:', error)
       notificationMessage.value = 'Erro ao excluir agendamento.'
@@ -370,10 +338,10 @@ const excluirAgendamento = async () => {
     }
   }
 }
-const formatCurrency = (value) =>
-  (value ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-const getCurrentRouteTitle = () =>
-  currentRoute.value.charAt(0).toUpperCase() + currentRoute.value.slice(1)
+
+const formatCurrency = (value) => (value ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
+const getCurrentRouteTitle = () => currentRoute.value.charAt(0).toUpperCase() + currentRoute.value.slice(1)
 
 // Funções de estilo (placeholders)
 const getSlotVariant = (slot) => (slot.tipo === 'livre' ? 'tonal' : 'elevated')
@@ -386,11 +354,17 @@ const getChipIcon = (status) => (status === 'Livre' ? 'mdi-check' : 'mdi-account
 const getChipIconColor = (status) => (status === 'Livre' ? 'green' : 'blue')
 const getChipTextColor = (status) => (status === 'Livre' ? 'text-green' : 'text-blue')
 
-// CORREÇÃO: onMounted para debug
 onMounted(() => {
   console.log('[HOME MOUNTED] Auth loading:', auth.loading.value)
   console.log('[HOME MOUNTED] Auth user:', !!auth.user.value)
   console.log('[HOME MOUNTED] Auth isReady:', auth.isReady.value)
+})
+
+onUnmounted(() => {
+  if (unsubscribeAgendamentos) {
+    console.log('[UNMOUNT] Cancelando listener de agendamentos.')
+    unsubscribeAgendamentos()
+  }
 })
 </script>
 
