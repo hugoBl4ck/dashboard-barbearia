@@ -104,7 +104,7 @@ const salvarHorarios = async () => {
             <!-- Inputs de Horário -->
             <v-col cols="12" md="9">
               <v-row v-if="horarios[dia.id].aberto">
-                <v-col cols="6" sm="3">
+                <v-col cols="12" sm="6" md="3">
                   <v-text-field
                     v-model="horarios[dia.id].InicioManha"
                     label="Início Manhã"
@@ -113,7 +113,7 @@ const salvarHorarios = async () => {
                     variant="outlined"
                   ></v-text-field>
                 </v-col>
-                <v-col cols="6" sm="3">
+                <v-col cols="12" sm="6" md="3">
                   <v-text-field
                     v-model="horarios[dia.id].FimManha"
                     label="Fim Manhã"
@@ -122,7 +122,7 @@ const salvarHorarios = async () => {
                     variant="outlined"
                   ></v-text-field>
                 </v-col>
-                <v-col cols="6" sm="3">
+                <v-col cols="12" sm="6" md="3">
                   <v-text-field
                     v-model="horarios[dia.id].InicioTarde"
                     label="Início Tarde"
@@ -131,7 +131,7 @@ const salvarHorarios = async () => {
                     variant="outlined"
                   ></v-text-field>
                 </v-col>
-                <v-col cols="6" sm="3">
+                <v-col cols="12" sm="6" md="3">
                   <v-text-field
                     v-model="horarios[dia.id].FimTarde"
                     label="Fim Tarde"
