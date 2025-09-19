@@ -496,14 +496,6 @@ onUnmounted(() => {
 
         <template v-slot:append>
           <div class="pa-2">
-            <v-switch
-              v-model="isDarkTheme"
-              hide-details
-              inset
-              :label="`Tema: ${isDarkTheme ? 'Escuro' : 'Claro'}`"
-              class="mb-4"
-              color="primary"
-            ></v-switch>
             <v-btn color="red" variant="outlined" block @click="logout" prepend-icon="mdi-logout">
               Sair
             </v-btn>
