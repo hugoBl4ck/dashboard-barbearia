@@ -138,7 +138,7 @@
 </style>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, computed, watchEffect } from 'vue'
 import { useTenant } from '@/composables/useTenant'
 
 const loading = ref(true)
@@ -147,7 +147,7 @@ const search = ref('')
 const expanded = ref([]) // Controla quais linhas estão expandidas
 
 // Usar o composable para acesso aos dados do tenant
-const { fetchAgendamentos, updateAgendamento } = useTenant()
+const { fetchAgendamentos, updateAgendamento, isTenantReady } = useTenant()
 
 const headers = [
   { title: 'Nome do Cliente', key: 'nome', align: 'start' },
@@ -158,18 +158,21 @@ const headers = [
   { title: 'Ações', key: 'data-table-expand', align: 'center' },
 ]
 
-onMounted(async () => {
-  loading.value = true
-  try {
-    // Busca os agendamentos usando a função segura do useTenant
-    const agendamentos = await fetchAgendamentos()
-    allAppointments.value = agendamentos.map((agendamento) => ({
-      ...agendamento,
-      // Cria um campo 'precoEditavel' para o v-model não modificar o dado original diretamente
-      precoEditavel: agendamento.preco || 0,
-    }))
-  } finally {
-    loading.value = false
+watchEffect(async () => {
+  if (isTenantReady.value) {
+    loading.value = true
+    try {
+      const agendamentos = await fetchAgendamentos()
+      allAppointments.value = agendamentos.map((agendamento) => ({
+        ...agendamento,
+        precoEditavel: agendamento.preco || 0,
+      }))
+    } catch (error) {
+      console.error('Erro ao carregar agendamentos na ClientesView:', error)
+      // Tratar o erro, talvez exibir uma mensagem para o usuário
+    } finally {
+      loading.value = false
+    }
   }
 })
 
@@ -196,7 +199,6 @@ const clientData = computed(() => {
       return dateB - dateA
     })
     const ultimoAgendamento = agendamentosOrdenados[0]
-    // Considera agendamentos com status 'Concluído' ou 'Agendado' para o total gasto
     const agendamentosValidos = agendamentosOrdenados.filter(
       (apt) => apt.Status === 'Concluído' || apt.Status === 'Agendado',
     )
@@ -208,29 +210,26 @@ const clientData = computed(() => {
       visitas: agendamentosOrdenados.length,
       totalGasto: totalGasto,
       ultimoServico: ultimoAgendamento?.servicoNome || 'N/A',
-      ultimaVisita: new Date(ultimoAgendamento.DataHoraISO).toLocaleDateString('pt-BR'),
-      // Passa a lista completa de agendamentos para a linha expandida
+      ultimaVisita: ultimoAgendamento?.DataHoraISO
+        ? new Date(ultimoAgendamento.DataHoraISO).toLocaleDateString('pt-BR')
+        : 'N/A',
       agendamentos: agendamentosOrdenados,
     }
   })
 })
 
-// NOVA FUNÇÃO PARA SALVAR O PREÇO
 const salvarPreco = async (agendamento) => {
   try {
-    // Usa a função segura do useTenant para atualizar
     await updateAgendamento(agendamento.id, {
       preco: agendamento.precoEditavel,
     })
 
-    // Atualiza o estado local para refletir a mudança sem precisar recarregar tudo
     agendamento.preco = agendamento.precoEditavel
 
     alert('Preço atualizado com sucesso!')
   } catch (error) {
     console.error('Erro ao atualizar o preço:', error)
     alert('Ocorreu um erro ao salvar. Tente novamente.')
-    // Reverte a mudança visual em caso de erro
     agendamento.precoEditavel = agendamento.preco
   }
 }

@@ -2,8 +2,14 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import { useTenant } from '@/composables/useTenant'
+import { useTheme } from 'vuetify'
 import HorariosView from './HorariosView.vue'
 import ServicosView from './ServicosView.vue'
+import ClientesView from './ClientesView.vue'
+import PerfilView from './PerfilView.vue'
+import ConfiguracoesView from './ConfiguracoesView.vue'
+import AgendamentosView from './AgendamentosView.vue'
+import RelatoriosView from './RelatoriosView.vue'
 
 // --- HOOKS ---
 const auth = useAuth()
@@ -45,6 +51,10 @@ const showNotification = ref(false)
 const notificationMessage = ref('')
 const notificationType = ref('success')
 const notificacoesCount = ref(3)
+
+// --- TEMA ---
+const theme = useTheme()
+const isDarkTheme = ref(false)
 
 // --- PROPRIEDADES COMPUTADAS ---
 const dataFormatada = computed(() => {
@@ -354,6 +364,12 @@ onMounted(() => {
     isReady: auth.isReady.value,
     error: auth.error.value,
   })
+  // Carregar tema do localStorage
+  const savedTheme = localStorage.getItem('barberapp-theme')
+  if (savedTheme) {
+    isDarkTheme.value = savedTheme === 'dark'
+    theme.global.name.value = savedTheme
+  }
 })
 
 onUnmounted(() => {
@@ -480,6 +496,14 @@ onUnmounted(() => {
 
         <template v-slot:append>
           <div class="pa-2">
+            <v-switch
+              v-model="isDarkTheme"
+              hide-details
+              inset
+              :label="`Tema: ${isDarkTheme ? 'Escuro' : 'Claro'}`"
+              class="mb-4"
+              color="primary"
+            ></v-switch>
             <v-btn color="red" variant="outlined" block @click="logout" prepend-icon="mdi-logout">
               Sair
             </v-btn>
@@ -690,6 +714,21 @@ onUnmounted(() => {
 
         <!-- PÁGINA DE SERVIÇOS -->
         <ServicosView v-else-if="currentRoute === 'servicos'" />
+
+        <!-- PÁGINA DE CLIENTES -->
+        <ClientesView v-else-if="currentRoute === 'clientes'" />
+
+        <!-- PÁGINA DE AGENDAMENTOS -->
+        <AgendamentosView v-else-if="currentRoute === 'agendamentos'" />
+
+        <!-- PÁGINA DE RELATÓRIOS -->
+        <RelatoriosView v-else-if="currentRoute === 'relatorios'" />
+
+        <!-- PÁGINA DE PERFIL -->
+        <PerfilView v-else-if="currentRoute === 'perfil'" />
+
+        <!-- PÁGINA DE CONFIGURAÇÕES -->
+        <ConfiguracoesView v-else-if="currentRoute === 'configuracoes'" />
 
         <!-- OUTRAS SEÇÕES (PLACEHOLDER) -->
         <div v-else>
