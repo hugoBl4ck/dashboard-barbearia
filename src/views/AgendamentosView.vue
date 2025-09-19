@@ -1,81 +1,119 @@
 <template>
   <v-container fluid class="pa-6 page-container">
-    <!-- CABEÇALHO -->
-    <v-row>
+    <!-- CABEÇALHO E AÇÃO PRINCIPAL -->
+    <v-row align="center">
       <v-col>
-        <h1 class="text-h4 font-weight-bold">Agendamentos</h1>
-        <p class="text-subtitle-1 text-medium-emphasis">Gerencie todos os agendamentos da barbearia</p>
+        <h1 class="text-h4 font-weight-bold">Agenda</h1>
+        <p class="text-subtitle-1 text-medium-emphasis">Gestão de horários e serviços</p>
+      </v-col>
+      <v-col class="text-right">
+        <v-btn
+          color="primary"
+          @click="dialogNovoAgendamento = true"
+          prepend-icon="mdi-plus-circle"
+          size="large"
+          elevation="2"
+        >
+          Novo Agendamento
+        </v-btn>
       </v-col>
     </v-row>
 
-    <!-- TABELA DE DADOS -->
+    <!-- FILTROS DE VISUALIZAÇÃO -->
     <v-row>
       <v-col>
-        <v-card elevation="2" class="data-table-card">
-          <v-card-title class="d-flex align-center pa-4">
-            <v-icon class="mr-2">mdi-calendar-clock</v-icon>
-            Lista de Agendamentos
-            <v-spacer></v-spacer>
-            <v-text-field
-              v-model="search"
-              label="Buscar agendamento..."
-              variant="outlined"
-              density="compact"
-              hide-details
-              prepend-inner-icon="mdi-magnify"
-              style="max-width: 300px"
-            ></v-text-field>
-          </v-card-title>
-
-          <v-divider></v-divider>
-
-          <v-data-table
-            :headers="headers"
-            :items="allAppointments"
-            :loading="loading"
-            :search="search"
-            item-value="id"
-            class="elevation-0"
-          >
-            <!-- Slot para formatação da data/hora -->
-            <template v-slot:item.DataHoraISO="{ item }">
-              {{ new Date(item.DataHoraISO).toLocaleString('pt-BR') }}
-            </template>
-
-            <!-- Slot para formatação do status -->
-            <template v-slot:item.Status="{ item }">
-              <v-chip :color="getStatusColor(item.Status)" size="small" label>
-                {{ item.Status }}
-              </v-chip>
-            </template>
-
-            <!-- Slot para formatação do preço -->
-            <template v-slot:item.preco="{ item }">
-              <span class="font-weight-medium">{{
-                item.preco.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-              }}</span>
-            </template>
-
-            <!-- Slot para ações (ex: editar/excluir) - Opcional, pode ser adicionado depois -->
-            <template v-slot:item.actions="{ item }">
-              <v-icon
-                size="small"
-                class="me-2"
-                @click="editItem(item)"
-              >
-                mdi-pencil
-              </v-icon>
-              <v-icon
-                size="small"
-                @click="deleteItem(item)"
-              >
-                mdi-delete
-              </v-icon>
-            </template>
-          </v-data-table>
-        </v-card>
+        <v-tabs v-model="activeTab" color="primary" grow>
+          <v-tab value="hoje">Hoje</v-tab>
+          <v-tab value="amanha">Amanhã</v-tab>
+          <v-tab value="proximos">Próximos 7 Dias</v-tab>
+          <v-tab value="todos">Todos</v-tab>
+        </v-tabs>
       </v-col>
     </v-row>
+
+    <!-- LISTA DE AGENDAMENTOS -->
+    <div v-if="loading" class="text-center pa-16">
+      <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
+    </div>
+    <div v-else>
+      <v-row v-if="agendamentosFiltrados.length > 0">
+        <v-col v-for="apt in agendamentosFiltrados" :key="apt.id" cols="12" md="6" lg="4">
+          <v-card class="appointment-card" elevation="2">
+            <v-card-title class="d-flex justify-space-between align-center">
+              <div>
+                <span class="font-weight-bold">{{ apt.NomeCliente }}</span>
+                <div class="text-caption text-medium-emphasis">{{ apt.servicoNome }}</div>
+              </div>
+              <v-chip :color="getStatusInfo(apt.Status).color" label size="small">{{
+                apt.Status
+              }}</v-chip>
+            </v-card-title>
+            <v-divider></v-divider>
+            <v-card-text class="d-flex align-center">
+              <v-icon class="mr-3" color="primary">mdi-calendar-clock</v-icon>
+              <div>
+                <div class="font-weight-medium">{{ apt.DataHoraFormatada }}</div>
+                <div class="text-caption">Duração: {{ apt.duracaoMinutos || '30' }} min</div>
+              </div>
+              <v-spacer></v-spacer>
+              <div class="text-h6 font-weight-bold text-success">
+                {{
+                  (apt.preco || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                }}
+              </div>
+            </v-card-text>
+            <v-card-actions class="pa-3">
+              <v-spacer></v-spacer>
+              <v-menu offset-y>
+                <template v-slot:activator="{ props }">
+                  <v-btn
+                    color="grey-darken-1"
+                    variant="tonal"
+                    v-bind="props"
+                    :disabled="isPast(apt.DataHoraISO)"
+                  >
+                    Mudar Status
+                    <v-icon right>mdi-chevron-down</v-icon>
+                  </v-btn>
+                </template>
+                <v-list dense>
+                  <v-list-item link @click="mudarStatus(apt, 'Concluído')">
+                    <v-list-item-title>Concluído</v-list-item-title>
+                  </v-list-item>
+                  <v-list-item link @click="mudarStatus(apt, 'Cancelado')">
+                    <v-list-item-title>Cancelado</v-list-item-title>
+                  </v-list-item>
+                </v-list>
+              </v-menu>
+            </v-card-actions>
+          </v-card>
+        </v-col>
+      </v-row>
+      <v-row v-else class="text-center pa-16">
+        <v-col>
+          <v-icon size="64" color="grey-lighten-1">mdi-calendar-check</v-icon>
+          <h3 class="text-h6 mt-4 text-medium-emphasis">Nenhum agendamento para este período.</h3>
+        </v-col>
+      </v-row>
+    </div>
+
+    <!-- DIALOG PARA NOVO AGENDAMENTO -->
+    <v-dialog v-model="dialogNovoAgendamento" max-width="500px">
+      <v-card>
+        <v-card-title>
+          <span class="text-h5">Criar Novo Agendamento</span>
+        </v-card-title>
+        <v-card-text>
+          <!-- Formulário para novo agendamento -->
+          <p class="text-center pa-8">Formulário de criação em desenvolvimento.</p>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn text @click="dialogNovoAgendamento = false">Cancelar</v-btn>
+          <v-btn color="primary" @click="salvarNovoAgendamento">Salvar</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-container>
 </template>
 
@@ -83,59 +121,105 @@
 .page-container {
   font-family: 'Poppins', sans-serif;
 }
-.data-table-card {
+.appointment-card {
   border-radius: 12px;
+  border-left: 5px solid;
+  border-left-color: rgb(var(--v-theme-primary));
+  transition:
+    transform 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out;
+}
+.appointment-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1) !important;
 }
 </style>
 
 <script setup>
-import { ref, watchEffect } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useTenant } from '@/composables/useTenant'
+import dayjs from 'dayjs'
+import 'dayjs/locale/pt-br'
+dayjs.locale('pt-br')
 
-const loading = ref(true)
+// --- ESTADO REATIVO ---
 const allAppointments = ref([])
-const search = ref('')
+const loading = ref(true)
+const activeTab = ref('hoje')
+const dialogNovoAgendamento = ref(false)
 
-const { fetchAgendamentos, isTenantReady } = useTenant()
+const { fetchAgendamentos, updateAgendamento, isTenantReady } = useTenant()
 
-const headers = [
-  { title: 'Data e Hora', key: 'DataHoraISO', align: 'start' },
-  { title: 'Cliente', key: 'NomeCliente', align: 'start' },
-  { title: 'Serviço', key: 'servicoNome', align: 'start' },
-  { title: 'Preço', key: 'preco', align: 'end' },
-  { title: 'Status', key: 'Status', align: 'center' },
-  { title: 'Ações', key: 'actions', sortable: false, align: 'center' },
-]
-
-watchEffect(async () => {
+// --- BUSCA DE DADOS ---
+onMounted(async () => {
   if (isTenantReady.value) {
-    loading.value = true
     try {
       const agendamentos = await fetchAgendamentos()
-      allAppointments.value = agendamentos
+      allAppointments.value = agendamentos.sort(
+        (a, b) => new Date(a.DataHoraISO) - new Date(b.DataHoraISO),
+      )
     } catch (error) {
-      console.error('Erro ao carregar agendamentos na AgendamentosView:', error)
+      console.error('Erro ao buscar agendamentos:', error)
     } finally {
       loading.value = false
     }
   }
 })
 
-const getStatusColor = (status) => {
-  if (status === 'Agendado') return 'blue'
-  if (status === 'Concluído') return 'success'
-  if (status === 'Cancelado') return 'red'
-  return 'grey'
+// --- LÓGICA DE FILTRAGEM E VISUALIZAÇÃO ---
+
+const agendamentosFiltrados = computed(() => {
+  const agora = dayjs()
+  switch (activeTab.value) {
+    case 'hoje':
+      return allAppointments.value.filter((apt) => dayjs(apt.DataHoraISO).isSame(agora, 'day'))
+    case 'amanha':
+      return allAppointments.value.filter((apt) =>
+        dayjs(apt.DataHoraISO).isSame(agora.add(1, 'day'), 'day'),
+      )
+    case 'proximos':
+      const seteDiasDepois = agora.add(7, 'day')
+      return allAppointments.value.filter(
+        (apt) =>
+          dayjs(apt.DataHoraISO).isAfter(agora) && dayjs(apt.DataHoraISO).isBefore(seteDiasDepois),
+      )
+    case 'todos':
+    default:
+      return allAppointments.value
+  }
+})
+
+const getStatusInfo = (status) => {
+  switch (status) {
+    case 'Agendado':
+      return { color: 'blue' }
+    case 'Concluído':
+      return { color: 'success' }
+    case 'Cancelado':
+      return { color: 'error' }
+    default:
+      return { color: 'grey' }
+  }
 }
 
-// Funções placeholder para ações, podem ser implementadas depois
-const editItem = (item) => {
-  console.log('Editar item:', item)
-  alert('Funcionalidade de edição em desenvolvimento!')
+const isPast = (isoDate) => {
+  return dayjs(isoDate).isBefore(dayjs())
 }
 
-const deleteItem = (item) => {
-  console.log('Excluir item:', item)
-  alert('Funcionalidade de exclusão em desenvolvimento!')
+const mudarStatus = async (agendamento, novoStatus) => {
+  try {
+    await updateAgendamento(agendamento.id, { Status: novoStatus })
+    const index = allAppointments.value.findIndex((a) => a.id === agendamento.id)
+    if (index !== -1) {
+      allAppointments.value[index].Status = novoStatus
+    }
+  } catch (error) {
+    console.error(`Erro ao atualizar status para ${novoStatus}:`, error)
+  }
+}
+
+const salvarNovoAgendamento = () => {
+  // Lógica para salvar um novo agendamento virá aqui
+  dialogNovoAgendamento.value = false
 }
 </script>
