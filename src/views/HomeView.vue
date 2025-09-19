@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import { useTenant } from '@/composables/useTenant'
-import { useTheme } from 'vuetify'
+import { useTheme, useDisplay } from 'vuetify'
 import HorariosView from './HorariosView.vue'
 import ServicosView from './ServicosView.vue'
 import ClientesView from './ClientesView.vue'
@@ -15,6 +15,7 @@ import RelatoriosView from './RelatoriosView.vue'
 const auth = useAuth()
 const tenant = useTenant()
 const theme = useTheme() // Hook do Vuetify para gerir o tema
+const { mdAndUp } = useDisplay()
 
 // --- REFS COMPUTADOS PARA FACILIDADE ---
 const user = computed(() => auth.user)
@@ -22,7 +23,7 @@ const barbeariaInfo = computed(() => auth.barbeariaInfo)
 
 // --- ESTADO GLOBAL ---
 const loadingData = ref(false)
-const drawer = ref(true)
+const drawer = ref(mdAndUp.value)
 const rail = ref(false)
 const currentRoute = ref('dashboard')
 
@@ -420,7 +421,7 @@ onUnmounted(() => {
     <!-- DASHBOARD PRINCIPAL -->
     <template v-else-if="auth.isReady.value">
       <!-- MENU LATERAL (DRAWER) -->
-      <v-navigation-drawer v-model="drawer" :rail="rail" permanent @click="rail = false">
+      <v-navigation-drawer v-model="drawer" :rail="rail" @click="rail = false">
         <v-list-item
           :prepend-avatar="user?.photoURL"
           :title="user?.displayName || user?.email"
@@ -514,7 +515,7 @@ onUnmounted(() => {
       <v-app-bar color="primary" elevation="2">
         <v-app-bar-nav-icon
           @click="drawer = !drawer"
-          v-if="$vuetify.display.mobile.value"
+          v-if="!$vuetify.display.mdAndUp"
         ></v-app-bar-nav-icon>
 
         <v-app-bar-title class="d-flex align-center">
@@ -587,7 +588,7 @@ onUnmounted(() => {
 
             <!-- CARDS DE INDICADORES (KPIs) -->
             <v-row>
-              <v-col cols="12" sm="6" lg="3">
+              <v-col cols="12" sm="6" md="6" lg="3">
                 <v-card elevation="0" class="kpi-card" color="blue">
                   <div class="d-flex justify-space-between align-center">
                     <div>
@@ -598,7 +599,7 @@ onUnmounted(() => {
                   </div>
                 </v-card>
               </v-col>
-              <v-col cols="12" sm="6" lg="3">
+              <v-col cols="12" sm="6" md="6" lg="3">
                 <v-card elevation="0" class="kpi-card" color="green">
                   <div class="d-flex justify-space-between align-center">
                     <div>
@@ -609,7 +610,7 @@ onUnmounted(() => {
                   </div>
                 </v-card>
               </v-col>
-              <v-col cols="12" sm="12" lg="6">
+              <v-col cols="12" sm="12" md="12" lg="6">
                 <v-card elevation="0" class="kpi-card pa-4" color="deep-purple-darken-1">
                   <div v-if="proximoAgendamento" class="d-flex align-center fill-height">
                     <v-avatar color="white" class="mr-4">

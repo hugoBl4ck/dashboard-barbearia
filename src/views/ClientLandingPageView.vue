@@ -108,6 +108,48 @@
         </v-container>
       </section>
 
+      <!-- SEÇÃO GALERIA -->
+      <section id="galeria" class="gallery-section">
+        <v-container>
+          <div class="text-center mb-12">
+            <h2 class="section-title">Galeria de Cortes</h2>
+            <p class="section-subtitle">Inspire-se com alguns dos nossos trabalhos</p>
+          </div>
+          <v-row>
+            <v-col
+              v-for="(photo, i) in galleryPhotos"
+              :key="i"
+              cols="12"
+              sm="6"
+              md="4"
+            >
+              <v-card class="gallery-card" elevation="4">
+                <v-img
+                  :src="photo.src"
+                  :lazy-src="photo.lazySrc"
+                  aspect-ratio="1"
+                  cover
+                  class="gallery-image"
+                >
+                  <template v-slot:placeholder>
+                    <v-row
+                      class="fill-height ma-0"
+                      align="center"
+                      justify="center"
+                    >
+                      <v-progress-circular
+                        indeterminate
+                        color="grey-lighten-5"
+                      ></v-progress-circular>
+                    </v-row>
+                  </template>
+                </v-img>
+              </v-card>
+            </v-col>
+          </v-row>
+        </v-container>
+      </section>
+
       <!-- SEÇÃO AGENDAMENTO -->
       <section id="agendamento" class="booking-section">
         <v-container>
@@ -260,6 +302,14 @@ const loading = ref(true)
 const barbeariaInfo = ref(null)
 const servicosDisponiveis = ref([])
 const horariosConfig = ref({})
+const galleryPhotos = ref([
+  { src: 'https://picsum.photos/id/1062/500/500', lazySrc: 'https://picsum.photos/id/1062/10/10' },
+  { src: 'https://picsum.photos/id/1074/500/500', lazySrc: 'https://picsum.photos/id/1074/10/10' },
+  { src: 'https://picsum.photos/id/1084/500/500', lazySrc: 'https://picsum.photos/id/1084/10/10' },
+  { src: 'https://picsum.photos/id/219/500/500', lazySrc: 'https://picsum.photos/id/219/10/10' },
+  { src: 'https://picsum.photos/id/237/500/500', lazySrc: 'https://picsum.photos/id/237/10/10' },
+  { src: 'https://picsum.photos/id/319/500/500', lazySrc: 'https://picsum.photos/id/319/10/10' },
+]);
 
 // Configuração do chat
 const typebotId = 'my-typebot-lk5rehg' // ID Fixo para todas as barbearias
@@ -391,6 +441,30 @@ onMounted(() => {
 .services-section {
   padding: 80px 0;
   background: white;
+}
+
+.gallery-section {
+  padding: 80px 0;
+  background-color: #f1f3f5; /* A slightly different background */
+}
+
+.v-theme--dark .gallery-section {
+  background-color: #1f1f1f;
+}
+
+.gallery-card {
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 0.3s ease;
+}
+
+.gallery-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 16px 32px rgba(0,0,0,0.15) !important;
+}
+
+.gallery-image {
+  cursor: pointer;
 }
 
 .booking-section {

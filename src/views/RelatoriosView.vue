@@ -24,8 +24,8 @@
     <div v-else>
       <!-- MÉTRICAS PRINCIPAIS DO PERÍODO -->
       <v-row>
-        <v-col cols="12" sm="6" lg="3">
-          <v-card elevation="2" class="kpi-card">
+        <v-col cols="12" sm="6" md="6" lg="3">
+          <v-card class="kpi-card">
             <div class="d-flex justify-space-between align-center">
               <div>
                 <p class="text-caption">FATURAMENTO NO PERÍODO</p>
@@ -42,8 +42,8 @@
             </div>
           </v-card>
         </v-col>
-        <v-col cols="12" sm="6" lg="3">
-          <v-card elevation="2" class="kpi-card">
+        <v-col cols="12" sm="6" md="6" lg="3">
+          <v-card class="kpi-card">
             <div class="d-flex justify-space-between align-center">
               <div>
                 <p class="text-caption">NOVOS CLIENTES</p>
@@ -53,8 +53,8 @@
             </div>
           </v-card>
         </v-col>
-        <v-col cols="12" sm="6" lg="3">
-          <v-card elevation="2" class="kpi-card">
+        <v-col cols="12" sm="6" md="6" lg="3">
+          <v-card class="kpi-card">
             <div class="d-flex justify-space-between align-center">
               <div>
                 <p class="text-caption">TICKET MÉDIO</p>
@@ -66,8 +66,8 @@
             </div>
           </v-card>
         </v-col>
-        <v-col cols="12" sm="6" lg="3">
-          <v-card elevation="2" class="kpi-card">
+        <v-col cols="12" sm="6" md="6" lg="3">
+          <v-card class="kpi-card">
             <div class="d-flex justify-space-between align-center">
               <div>
                 <p class="text-caption">AGENDAMENTOS CONCLUÍDOS</p>
@@ -82,7 +82,7 @@
       <!-- GRÁFICOS DETALHADOS -->
       <v-row class="mt-4">
         <v-col cols="12" lg="8">
-          <v-card elevation="2" class="pa-4 chart-card">
+          <v-card class="pa-4 chart-card">
             <h3 class="text-h6 mb-2">Faturamento Diário</h3>
             <apexchart
               type="area"
@@ -93,7 +93,7 @@
           </v-card>
         </v-col>
         <v-col cols="12" lg="4">
-          <v-card elevation="2" class="pa-4 chart-card">
+          <v-card class="pa-4 chart-card">
             <h3 class="text-h6 mb-2">Novos vs. Recorrentes</h3>
             <apexchart
               type="donut"

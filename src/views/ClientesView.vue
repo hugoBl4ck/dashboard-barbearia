@@ -173,10 +173,10 @@ const { fetchAgendamentos, updateAgendamento, isTenantReady } = useTenant()
 
 const headers = [
   { title: 'Nome do Cliente', key: 'nome', align: 'start' },
-  { title: 'Telefone', key: 'telefone', align: 'start' },
-  { title: 'Total de Visitas', key: 'visitas', align: 'center' },
+  { title: 'Telefone', key: 'telefone', align: 'start', class: 'hidden-sm-and-down' },
+  { title: 'Total de Visitas', key: 'visitas', align: 'center', class: 'hidden-sm-and-down' },
   { title: 'Total Gasto', key: 'totalGasto', align: 'end' },
-  { title: 'Última Visita', key: 'ultimaVisita', align: 'end' },
+  { title: 'Última Visita', key: 'ultimaVisita', align: 'end', class: 'hidden-sm-and-down' },
   { title: 'Ações', key: 'data-table-expand', align: 'center' },
 ]
 
