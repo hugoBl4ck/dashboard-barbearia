@@ -8,10 +8,30 @@
       </v-col>
     </v-row>
 
-    <!-- TABELA DE DADOS EXPANSÍVEL -->
-    <v-row>
+    <!-- ESTADO VAZIO -->
+    <v-row v-if="!loading && clientData.length === 0" class="mt-4">
       <v-col>
-        <v-card elevation="2" class="data-table-card">
+        <EmptyState
+          icon="mdi-account-off-outline"
+          title="Nenhum Cliente Encontrado"
+          message="Ainda não há clientes registados nesta barbearia ou não foram encontrados na sua busca."
+        >
+          <v-btn
+            color="primary"
+            @click="onAddClientClick"
+            :loading="addingClient"
+            prepend-icon="mdi-plus"
+          >
+            Adicionar Primeiro Cliente
+          </v-btn>
+        </EmptyState>
+      </v-col>
+    </v-row>
+
+    <!-- TABELA DE DADOS EXPANSÍVEL -->
+    <v-row v-if="!loading && clientData.length > 0">
+      <v-col>
+        <v-card class="data-table-card">
           <v-card-title class="d-flex align-center pa-4">
             <v-icon class="mr-2">mdi-account-search</v-icon>
             Lista de Clientes
@@ -140,8 +160,10 @@
 <script setup>
 import { ref, computed, watchEffect } from 'vue'
 import { useTenant } from '@/composables/useTenant'
+import EmptyState from '@/components/EmptyState.vue'
 
 const loading = ref(true)
+const addingClient = ref(false)
 const allAppointments = ref([])
 const search = ref('')
 const expanded = ref([]) // Controla quais linhas estão expandidas
@@ -217,6 +239,17 @@ const clientData = computed(() => {
     }
   })
 })
+
+const onAddClientClick = () => {
+  addingClient.value = true
+  // Lógica para abrir um modal de adição de cliente deve ser implementada aqui
+  console.log('Abrir modal para adicionar novo cliente...')
+
+  // Simular uma operação assíncrona
+  setTimeout(() => {
+    addingClient.value = false
+  }, 2000)
+}
 
 const salvarPreco = async (agendamento) => {
   try {
