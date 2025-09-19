@@ -15,10 +15,13 @@
   },
   "dependencies": {
     "@fontsource/poppins": "^5.2.7",
+    "@google/generative-ai": "^0.24.1",
     "@mdi/font": "^7.4.47",
     "@typebot.io/js": "^0.8.20",
     "apexcharts": "^5.3.4",
+    "dayjs": "^1.11.18",
     "firebase": "^12.2.1",
+    "firebase-admin": "^13.5.0",
     "lucide-vue-next": "^0.541.0",
     "sass": "^1.90.0",
     "vue": "^3.5.18",
