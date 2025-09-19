@@ -14,13 +14,14 @@ import RelatoriosView from './RelatoriosView.vue'
 // --- HOOKS ---
 const auth = useAuth()
 const tenant = useTenant()
+const theme = useTheme() // Hook do Vuetify para gerir o tema
 
 // --- REFS COMPUTADOS PARA FACILIDADE ---
 const user = computed(() => auth.user)
 const barbeariaInfo = computed(() => auth.barbeariaInfo)
 
 // --- ESTADO GLOBAL ---
-const loadingData = ref(false) // Carregamento dos dados da agenda
+const loadingData = ref(false)
 const drawer = ref(true)
 const rail = ref(false)
 const currentRoute = ref('dashboard')
@@ -31,7 +32,7 @@ const agendaDoDia = ref([])
 const estatisticasDia = ref({ agendados: 0, faturamentoFormatado: 'R$ 0,00' })
 const proximoAgendamento = ref(null)
 const estaFechado = ref(false)
-let unsubscribeAgendamentos = null // Para guardar a função de unsubscribe do listener
+let unsubscribeAgendamentos = null
 
 // --- ESTADO DO MODAL ---
 const modalAberto = ref(false)
@@ -53,7 +54,6 @@ const notificationType = ref('success')
 const notificacoesCount = ref(3)
 
 // --- TEMA ---
-const theme = useTheme()
 const isDarkTheme = ref(false)
 
 // --- PROPRIEDADES COMPUTADAS ---
@@ -69,6 +69,15 @@ const dataFormatada = computed(() => {
 })
 
 // --- FUNÇÕES ---
+
+// NOVA FUNÇÃO PARA ALTERNAR O TEMA
+const toggleTheme = () => {
+  isDarkTheme.value = !isDarkTheme.value
+  const newTheme = isDarkTheme.value ? 'dark' : 'light'
+  theme.global.name.value = newTheme
+  localStorage.setItem('barberapp-theme', newTheme) // Salva a preferência
+}
+
 const carregarDadosIniciais = async () => {
   if (!auth.isReady.value) return
 
@@ -79,7 +88,6 @@ const carregarDadosIniciais = async () => {
     console.log('[DADOS INICIAIS CARREGADOS]')
   } catch (error) {
     console.error('Erro ao carregar dados iniciais:', error)
-    // O erro já é tratado globalmente no template
   }
 }
 
@@ -197,7 +205,6 @@ const carregarDadosAgenda = async () => {
   } catch (error) {
     console.error('Erro ao carregar agenda:', error)
     loadingData.value = false
-    // O erro será refletido na UI pelo watcher do auth.error
   }
 }
 
@@ -516,6 +523,11 @@ onUnmounted(() => {
         </v-app-bar-title>
 
         <v-spacer></v-spacer>
+
+        <!-- BOTÃO DE TEMA ADICIONADO AQUI -->
+        <v-btn icon @click="toggleTheme" class="mr-2">
+          <v-icon>{{ isDarkTheme ? 'mdi-weather-night' : 'mdi-weather-sunny' }}</v-icon>
+        </v-btn>
 
         <!-- NOTIFICAÇÕES -->
         <v-btn icon class="mr-2">
@@ -840,3 +852,55 @@ onUnmounted(() => {
     </div>
   </v-app>
 </template>
+<style>
+/* Estilos globais para a aplicação */
+.page-container {
+  font-family: 'Poppins', sans-serif;
+}
+
+.date-nav-card {
+  border-radius: 12px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+}
+
+.kpi-card {
+  border-radius: 16px;
+  padding: 16px !important;
+  color: white;
+  transition:
+    transform 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out;
+}
+.kpi-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+.kpi-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  opacity: 0.8;
+}
+.kpi-number {
+  font-size: 2rem;
+  font-weight: 700;
+}
+.kpi-icon {
+  opacity: 0.3;
+}
+
+.slot-card {
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+  transition: all 0.2s ease-in-out;
+}
+.slot-card:hover:not(:disabled) {
+  border-color: rgba(var(--v-theme-primary), 0.8);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+.truncate-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+</style>
