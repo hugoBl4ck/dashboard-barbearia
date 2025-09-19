@@ -147,7 +147,12 @@ onAuthStateChanged(auth, async (firebaseUser) => {
     user.value = firebaseUser // Manter usuário Firebase
     userData.value = null
     barbeariaInfo.value = null
-  } finally {
+    loading.value = false // Definir loading como false em caso de erro
+  }
+
+  // Definir loading como false apenas após todas as operações assíncronas terem terminado
+  // e o estado ter sido completamente resolvido.
+  if (!loading.value) { // Evitar definir loading como false se já foi definido no catch
     loading.value = false
   }
 })

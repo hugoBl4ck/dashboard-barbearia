@@ -102,64 +102,88 @@ const carregarDadosAgenda = async () => {
     const fimDia = new Date(dataSelecionada.value)
     fimDia.setHours(23, 59, 59, 999)
 
-    unsubscribeAgendamentos = tenant.listenToAgendamentos((agendamentos) => {
-      const stats = tenant.calcularEstatisticasDia(agendamentos, dataSelecionada.value)
-      estatisticasDia.value = {
-        agendados: stats.agendados,
-        faturamentoFormatado: stats.faturamentoFormatado,
-      }
-
-      proximoAgendamento.value =
-        agendamentos
-          .filter((a) => new Date(a.DataHoraISO) > new Date() && a.Status === 'Agendado')
-          .sort((a, b) => new Date(a.DataHoraISO).getTime() - new Date(b.DataHoraISO).getTime())[0] || null
-
-      const slots = []
-      const agendamentosMap = new Map(agendamentos.map((a) => [new Date(a.DataHoraISO).getTime(), a]))
-      const intervalo = barbeariaInfo.value?.configuracoes?.intervaloAgendamento || 30
-
-      const parseTime = (str) => (str ? parseInt(str.split(':')[0]) * 60 + parseInt(str.split(':')[1]) : 0)
-      const minutoInicio = parseTime(configHorarios.InicioManha)
-      const minutoFim = parseTime(configHorarios.FimTarde || configHorarios.FimManha)
-      const minutoAlmocoInicio = parseTime(configHorarios.InicioTarde ? configHorarios.FimManha : '')
-      const minutoAlmocoFim = parseTime(configHorarios.InicioTarde)
-
-      for (let minuto = minutoInicio; minuto < minutoFim; minuto += intervalo) {
-        if (minutoAlmocoInicio && minutoAlmocoFim && minuto >= minutoAlmocoInicio && minuto < minutoAlmocoFim) continue
-
-        const dataSlot = new Date(dataSelecionada.value)
-        dataSlot.setHours(Math.floor(minuto / 60), minuto % 60, 0, 0)
-        const timestamp = dataSlot.getTime()
-        const agendamento = agendamentosMap.get(timestamp)
-        const estaNoPassado = timestamp < new Date().getTime() && dataSelecionada.value.toDateString() === new Date().toDateString()
-
-        if (agendamento) {
-          slots.push({
-            timestamp,
-            horarioFormatado: new Date(agendamento.DataHoraISO).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            tipo: estaNoPassado ? 'passado' : 'agendamento',
-            titulo: agendamento.NomeCliente,
-            detalhes: agendamento.servicoNome,
-            preco: agendamento.preco,
-            status: agendamento.Status,
-            agendamento,
-          })
-        } else {
-          slots.push({
-            timestamp,
-            horarioFormatado: dataSlot.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-            tipo: estaNoPassado ? 'passado' : 'livre',
-            titulo: estaNoPassado ? 'Encerrado' : 'Disponível',
-            status: estaNoPassado ? 'Encerrado' : 'Livre',
-          })
+    unsubscribeAgendamentos = tenant.listenToAgendamentos(
+      (agendamentos) => {
+        const stats = tenant.calcularEstatisticasDia(agendamentos, dataSelecionada.value)
+        estatisticasDia.value = {
+          agendados: stats.agendados,
+          faturamentoFormatado: stats.faturamentoFormatado,
         }
-      }
-      agendaDoDia.value = slots
-      loadingData.value = false
-    }, {
-      dataInicio: inicioDia.toISOString(),
-      dataFim: fimDia.toISOString(),
-    })
+
+        proximoAgendamento.value =
+          agendamentos
+            .filter((a) => new Date(a.DataHoraISO) > new Date() && a.Status === 'Agendado')
+            .sort(
+              (a, b) => new Date(a.DataHoraISO).getTime() - new Date(b.DataHoraISO).getTime(),
+            )[0] || null
+
+        const slots = []
+        const agendamentosMap = new Map(
+          agendamentos.map((a) => [new Date(a.DataHoraISO).getTime(), a]),
+        )
+        const intervalo = barbeariaInfo.value?.configuracoes?.intervaloAgendamento || 30
+
+        const parseTime = (str) =>
+          str ? parseInt(str.split(':')[0]) * 60 + parseInt(str.split(':')[1]) : 0
+        const minutoInicio = parseTime(configHorarios.InicioManha)
+        const minutoFim = parseTime(configHorarios.FimTarde || configHorarios.FimManha)
+        const minutoAlmocoInicio = parseTime(
+          configHorarios.InicioTarde ? configHorarios.FimManha : '',
+        )
+        const minutoAlmocoFim = parseTime(configHorarios.InicioTarde)
+
+        for (let minuto = minutoInicio; minuto < minutoFim; minuto += intervalo) {
+          if (
+            minutoAlmocoInicio &&
+            minutoAlmocoFim &&
+            minuto >= minutoAlmocoInicio &&
+            minuto < minutoAlmocoFim
+          )
+            continue
+
+          const dataSlot = new Date(dataSelecionada.value)
+          dataSlot.setHours(Math.floor(minuto / 60), minuto % 60, 0, 0)
+          const timestamp = dataSlot.getTime()
+          const agendamento = agendamentosMap.get(timestamp)
+          const estaNoPassado =
+            timestamp < new Date().getTime() &&
+            dataSelecionada.value.toDateString() === new Date().toDateString()
+
+          if (agendamento) {
+            slots.push({
+              timestamp,
+              horarioFormatado: new Date(agendamento.DataHoraISO).toLocaleTimeString('pt-BR', {
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+              tipo: estaNoPassado ? 'passado' : 'agendamento',
+              titulo: agendamento.NomeCliente,
+              detalhes: agendamento.servicoNome,
+              preco: agendamento.preco,
+              status: agendamento.Status,
+              agendamento,
+            })
+          } else {
+            slots.push({
+              timestamp,
+              horarioFormatado: dataSlot.toLocaleTimeString('pt-BR', {
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+              tipo: estaNoPassado ? 'passado' : 'livre',
+              titulo: estaNoPassado ? 'Encerrado' : 'Disponível',
+              status: estaNoPassado ? 'Encerrado' : 'Livre',
+            })
+          }
+        }
+        agendaDoDia.value = slots
+        loadingData.value = false
+      },
+      {
+        dataInicio: inicioDia.toISOString(),
+        dataFim: fimDia.toISOString(),
+      },
+    )
   } catch (error) {
     console.error('Erro ao carregar agenda:', error)
     loadingData.value = false
@@ -167,18 +191,16 @@ const carregarDadosAgenda = async () => {
   }
 }
 
-const retryLoadData = () => {
-  // A re-autenticação ou atualização da página é a melhor forma de tentar novamente
-  // Por enquanto, o logout é a ação mais segura.
-  logout()
-}
-
 // --- WATCHERS ---
-watch(auth.isReady, (ready) => {
-  if (ready) {
-    carregarDadosIniciais()
-  }
-}, { immediate: true })
+watch(
+  auth.isReady,
+  (ready) => {
+    if (ready) {
+      carregarDadosIniciais()
+    }
+  },
+  { immediate: true },
+)
 
 watch(dataSelecionada, () => {
   if (auth.isReady.value) {
@@ -224,7 +246,8 @@ const handleItemClick = (slot) => {
     agendamentoEditando.value = slot.agendamento
     nomeCliente.value = slot.agendamento.NomeCliente
     telefoneCliente.value = slot.agendamento.TelefoneCliente
-    servicoSelecionado.value = listaServicos.value.find((s) => s.id === slot.agendamento.servicoId) || null
+    servicoSelecionado.value =
+      listaServicos.value.find((s) => s.id === slot.agendamento.servicoId) || null
     precoServico.value = slot.agendamento.preco
   } else {
     editando.value = false
@@ -307,9 +330,11 @@ const excluirAgendamento = async () => {
   }
 }
 
-const formatCurrency = (value) => (value ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+const formatCurrency = (value) =>
+  (value ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
-const getCurrentRouteTitle = () => currentRoute.value.charAt(0).toUpperCase() + currentRoute.value.slice(1)
+const getCurrentRouteTitle = () =>
+  currentRoute.value.charAt(0).toUpperCase() + currentRoute.value.slice(1)
 
 // Funções de estilo (placeholders)
 const getSlotVariant = (slot) => (slot.tipo === 'livre' ? 'tonal' : 'elevated')
@@ -323,11 +348,11 @@ const getChipIconColor = (status) => (status === 'Livre' ? 'green' : 'blue')
 const getChipTextColor = (status) => (status === 'Livre' ? 'text-green' : 'text-blue')
 
 onMounted(() => {
-  console.log('[HOME MOUNTED] Auth state:', { 
-    loading: auth.loading.value, 
-    user: !!auth.user.value, 
+  console.log('[HOME MOUNTED] Auth state:', {
+    loading: auth.loading.value,
+    user: !!auth.user.value,
     isReady: auth.isReady.value,
-    error: auth.error.value 
+    error: auth.error.value,
   })
 })
 
@@ -566,7 +591,12 @@ onUnmounted(() => {
                       <p class="kpi-label">PRÓXIMO CLIENTE</p>
                       <p class="text-h6 font-weight-bold">
                         {{ proximoAgendamento.NomeCliente }} às
-                        {{ new Date(proximoAgendamento.DataHoraISO).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) }}
+                        {{
+                          new Date(proximoAgendamento.DataHoraISO).toLocaleTimeString('pt-BR', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        }}
                       </p>
                     </div>
                   </div>
@@ -760,7 +790,7 @@ onUnmounted(() => {
         </v-snackbar>
       </v-main>
     </template>
-    
+
     <!-- FALLBACK: Se não estiver carregando, nem com erro, nem pronto (estado inesperado) -->
     <div
       v-else
@@ -771,7 +801,8 @@ onUnmounted(() => {
         <v-icon size="64" color="warning">mdi-help-circle-outline</v-icon>
         <h2 class="text-h5 mt-4 mb-2">Estado Inesperado</h2>
         <p class="text-body-2 text-medium-emphasis mb-6">
-          A aplicação encontrou um estado inesperado. Por favor, tente recarregar a página ou fazer logout.
+          A aplicação encontrou um estado inesperado. Por favor, tente recarregar a página ou fazer
+          logout.
         </p>
         <v-btn variant="outlined" @click="logout"> Fazer Logout </v-btn>
       </v-card>
