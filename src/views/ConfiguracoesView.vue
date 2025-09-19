@@ -72,7 +72,10 @@
 
             <!-- Ações -->
             <v-row>
-              <v-col cols="12" class="text-right mt-6">
+              <v-col cols="12" class="d-flex justify-space-between align-center mt-6">
+                <v-btn variant="text" @click="voltar">
+                  Voltar
+                </v-btn>
                 <v-btn color="primary" size="large" type="submit" :loading="salvando">
                   <v-icon left>mdi-content-save</v-icon>
                   Salvar Alterações
@@ -88,7 +91,9 @@
 
 <script setup>
 import { ref } from 'vue';
+import { useRouter } from 'vue-router';
 
+const router = useRouter();
 const salvando = ref(false);
 
 const configuracoes = ref({
@@ -108,6 +113,10 @@ const salvarConfiguracoes = () => {
     salvando.value = false;
     // Exibir snackbar/notificação de sucesso
   }, 2000);
+};
+
+const voltar = () => {
+  router.back();
 };
 </script>
 

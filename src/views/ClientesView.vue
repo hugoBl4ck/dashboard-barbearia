@@ -49,90 +49,91 @@
 
           <v-divider></v-divider>
 
-          <!-- Nova VDataTableServer com expansão -->
-          <v-data-table
-            v-model:expanded="expanded"
-            :headers="headers"
-            :items="clientData"
-            :loading="loading"
-            :search="search"
-            item-value="telefone"
-            show-expand
-            class="elevation-0"
-          >
-            <!-- Slot para a linha expandida -->
-            <template v-slot:expanded-row="{ columns, item }">
-              <tr>
-                <td :colspan="columns.length" class="pa-0">
-                  <v-list class="expanded-list">
-                    <v-list-item
-                      v-for="agendamento in item.agendamentos"
-                      :key="agendamento.id"
-                      class="expanded-item"
-                    >
-                      <v-list-item-title class="d-flex align-center">
-                        <v-chip size="small" class="mr-4">{{
-                          agendamento.DataHoraFormatada.split(' ')[0]
-                        }}</v-chip>
-                        <div>
-                          <div>{{ agendamento.servicoNome }}</div>
-                          <!-- CHIP DE STATUS VISUAL -->
-                          <v-chip
-                            :color="getStatusColor(agendamento.Status)"
-                            size="x-small"
-                            class="mt-1"
-                            label
-                          >
-                            {{ agendamento.Status }}
-                          </v-chip>
-                        </div>
-                      </v-list-item-title>
-
-                      <template v-slot:append>
-                        <div class="d-flex align-center">
-                          <!-- Campo de Preço Editável -->
-                          <v-text-field
-                            v-model.number="agendamento.precoEditavel"
-                            type="number"
-                            variant="outlined"
-                            density="compact"
-                            hide-details
-                            prefix="R$"
-                            style="width: 120px"
-                            class="mr-2"
-                            @click.stop
-                          ></v-text-field>
-                          <v-btn
-                            icon
-                            size="small"
-                            variant="text"
-                            color="primary"
-                            @click.stop="salvarPreco(agendamento)"
-                            :disabled="agendamento.preco === agendamento.precoEditavel"
-                          >
-                            <v-icon>mdi-content-save</v-icon>
-                          </v-btn>
-                        </div>
-                      </template>
-                    </v-list-item>
-                  </v-list>
-                </td>
-              </tr>
-            </template>
-
-            <!-- Slots para formatação (iguais ao anterior) -->
-            <template v-slot:item.nome="{ item }">
-              <div class="font-weight-bold">{{ item.nome }}</div>
-            </template>
-            <template v-slot:item.totalGasto="{ item }">
-              <span class="text-green font-weight-medium">{{
-                item.totalGasto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-              }}</span>
-            </template>
-            <template v-slot:item.ultimoServico="{ item }">
-              <v-chip size="small" variant="tonal">{{ item.ultimoServico }}</v-chip>
-            </template>
-          </v-data-table>
+          <div class="table-responsive">
+            <v-data-table
+              v-model:expanded="expanded"
+              :headers="headers"
+              :items="clientData"
+              :loading="loading"
+              :search="search"
+              item-value="telefone"
+              show-expand
+              class="elevation-0"
+            >
+              <!-- Slot para a linha expandida -->
+              <template v-slot:expanded-row="{ columns, item }">
+                <tr>
+                  <td :colspan="columns.length" class="pa-0">
+                    <v-list class="expanded-list">
+                      <v-list-item
+                        v-for="agendamento in item.agendamentos"
+                        :key="agendamento.id"
+                        class="expanded-item"
+                      >
+                        <v-list-item-title class="d-flex align-center">
+                          <v-chip size="small" class="mr-4">{{
+                            agendamento.DataHoraFormatada.split(' ')[0]
+                          }}</v-chip>
+                          <div>
+                            <div>{{ agendamento.servicoNome }}</div>
+                            <!-- CHIP DE STATUS VISUAL -->
+                            <v-chip
+                              :color="getStatusColor(agendamento.Status)"
+                              size="x-small"
+                              class="mt-1"
+                              label
+                            >
+                              {{ agendamento.Status }}
+                            </v-chip>
+                          </div>
+                        </v-list-item-title>
+  
+                        <template v-slot:append>
+                          <div class="d-flex align-center">
+                            <!-- Campo de Preço Editável -->
+                            <v-text-field
+                              v-model.number="agendamento.precoEditavel"
+                              type="number"
+                              variant="outlined"
+                              density="compact"
+                              hide-details
+                              prefix="R$"
+                              style="width: 120px"
+                              class="mr-2"
+                              @click.stop
+                            ></v-text-field>
+                            <v-btn
+                              icon
+                              size="small"
+                              variant="text"
+                              color="primary"
+                              @click.stop="salvarPreco(agendamento)"
+                              :disabled="agendamento.preco === agendamento.precoEditavel"
+                            >
+                              <v-icon>mdi-content-save</v-icon>
+                            </v-btn>
+                          </div>
+                        </template>
+                      </v-list-item>
+                    </v-list>
+                  </td>
+                </tr>
+              </template>
+  
+              <!-- Slots para formatação (iguais ao anterior) -->
+              <template v-slot:item.nome="{ item }">
+                <div class="font-weight-bold">{{ item.nome }}</div>
+              </template>
+              <template v-slot:item.totalGasto="{ item }">
+                <span class="text-green font-weight-medium">{{
+                  item.totalGasto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+                }}</span>
+              </template>
+              <template v-slot:item.ultimoServico="{ item }">
+                <v-chip size="small" variant="tonal">{{ item.ultimoServico }}</v-chip>
+              </template>
+            </v-data-table>
+          </div>
         </v-card>
       </v-col>
     </v-row>
@@ -154,6 +155,12 @@
 }
 .expanded-item:last-child {
   border-bottom: none;
+}
+
+@media (max-width: 600px) {
+  .table-responsive {
+    overflow-x: auto;
+  }
 }
 </style>
 

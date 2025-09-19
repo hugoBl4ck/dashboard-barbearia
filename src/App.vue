@@ -14,14 +14,50 @@
       <!-- Se não estiver carregando, mostra o conteúdo da rota -->
       <router-view v-else />
     </v-main>
+
+    <!-- Botão Voltar Flutuante para Mobile -->
+    <v-btn
+      v-if="showBackButton"
+      icon
+      color="primary"
+      position="fixed"
+      location="bottom left"
+      class="ma-4"
+      elevation="8"
+      @click="goBack"
+    >
+      <v-icon>mdi-arrow-left</v-icon>
+    </v-btn>
   </v-app>
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import { useAuth } from '@/composables/useAuth';
+import { useDisplay } from 'vuetify';
+import { useRoute, useRouter } from 'vue-router';
 
 // Pega o estado de loading do nosso composable de autenticação
 const { loading } = useAuth();
+
+// Hooks para responsividade e roteamento
+const { mobile } = useDisplay();
+const route = useRoute();
+const router = useRouter();
+
+// Condições para exibir o botão de voltar
+const showBackButton = computed(() => {
+  const nonBackButtonRoutes = ['/', '/login', '/cliente/:barbeariaId'];
+  // Confere se a rota atual corresponde a alguma das rotas que não devem ter o botão
+  const isNonBackButtonRoute = nonBackButtonRoutes.some(r => route.matched.some(m => m.path === r));
+  
+  // Mostra o botão apenas em telas móveis e se não for uma das rotas excluídas
+  return mobile.value && !isNonBackButtonRoute;
+});
+
+const goBack = () => {
+  router.back();
+};
 </script>
 
 <style>
