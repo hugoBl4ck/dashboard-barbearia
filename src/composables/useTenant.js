@@ -1,4 +1,4 @@
-// composables/useTenant.js (VERSÃO COM STORAGE)
+// composables/useTenant.js (VERSÃO COM API VERCEL BLOB)
 import { computed, readonly } from 'vue'
 import { useAuth } from './useAuth'
 import {
@@ -15,13 +15,8 @@ import {
   deleteDoc,
   onSnapshot,
 } from 'firebase/firestore'
-import { db, storage } from '@/firebase' // Importa STORAGE
-import {
-  ref as storageRef,
-  uploadBytesResumable,
-  getDownloadURL,
-  deleteObject,
-} from 'firebase/storage' // Importa funções do Storage
+import { db } from '@/firebase'
+import { getAuth } from 'firebase/auth'; // Importa getAuth para obter o token
 
 export const useTenant = () => {
   const { barbeariaId, barbeariaInfo } = useAuth()
@@ -35,73 +30,75 @@ export const useTenant = () => {
     return barbeariaId.value
   }
 
-  // ... (funções existentes de getCollection, getTenantDoc, etc., permanecem iguais)
-    // Construir path da coleção para o tenant atual
-    const getCollection = (collectionName) => {
-        const tenantId = validateTenantAccess()
-        return collection(db, `barbearias/${tenantId}/${collectionName}`)
-    }
-
-    // Construir path do documento para o tenant atual
-    const getTenantDoc = (collectionName, docId) => {
-        const tenantId = validateTenantAccess()
-        return doc(db, `barbearias/${tenantId}/${collectionName}`, docId)
-    }
-
-  // --- NOVAS FUNÇÕES DE STORAGE ---
-
-  /**
-   * Faz upload de um arquivo para o Firebase Storage.
-   * @param {File} file - O arquivo a ser enviado.
-   * @param {string} path - O caminho de destino no Storage (ex: 'logos', 'gallery').
-   * @returns {Promise<string>} - A URL de download do arquivo.
-   */
-  const uploadFile = async (file, path) => {
+  const getCollection = (collectionName) => {
     const tenantId = validateTenantAccess()
-    const uniqueName = `${Date.now()}-${file.name}`
-    const fileRef = storageRef(storage, `barbearias/${tenantId}/${path}/${uniqueName}`)
-
-    const uploadTask = uploadBytesResumable(fileRef, file)
-
-    return new Promise((resolve, reject) => {
-      uploadTask.on(
-        'state_changed',
-        (snapshot) => {
-          // Opcional: pode-se emitir o progresso aqui
-          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100
-          console.log('Upload is ' + progress + '% done')
-        },
-        (error) => {
-          console.error('Erro no upload:', error)
-          reject(new Error(`Falha no upload do arquivo: ${error.message}`))
-        },
-        async () => {
-          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref)
-          resolve(downloadURL)
-        },
-      )
-    })
+    return collection(db, `barbearias/${tenantId}/${collectionName}`)
   }
 
-  /**
-   * Exclui um arquivo do Firebase Storage usando sua URL.
-   * @param {string} fileUrl - A URL do arquivo a ser excluído.
-   * @returns {Promise<void>}
-   */
-  const deleteFileByUrl = async (fileUrl) => {
-    if (!fileUrl) return
+  const getTenantDoc = (collectionName, docId) => {
+    const tenantId = validateTenantAccess()
+    return doc(db, `barbearias/${tenantId}/${collectionName}`, docId)
+  }
+
+  // --- NOVAS FUNÇÕES DE STORAGE (VIA API VERCEL BLOB) ---
+
+  const getAuthToken = async () => {
+    const auth = getAuth();
+    if (!auth.currentUser) {
+      throw new Error('Usuário não autenticado.');
+    }
+    return await auth.currentUser.getIdToken();
+  }
+
+  const uploadFile = async (file, path) => {
     try {
-      const fileRef = storageRef(storage, fileUrl)
-      await deleteObject(fileRef)
-      console.log('Arquivo excluído com sucesso:', fileUrl)
-    } catch (error) {
-      // Ignora erro de objeto não encontrado (pode já ter sido excluído)
-      if (error.code === 'storage/object-not-found') {
-        console.warn('Arquivo não encontrado no Storage (pode já ter sido excluído):', fileUrl)
-        return
+      const token = await getAuthToken();
+      const uniqueName = `${path}/${Date.now()}-${file.name}`;
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'x-vercel-filename': uniqueName,
+        },
+        body: file,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Falha no upload do arquivo.');
       }
-      console.error('Erro ao excluir arquivo:', error)
-      throw new Error(`Falha ao excluir arquivo: ${error.message}`)
+
+      const blob = await response.json();
+      return blob.url;
+    } catch (error) {
+      console.error('Erro no upload via API:', error);
+      throw error;
+    }
+  }
+
+  const deleteFileByUrl = async (fileUrl) => {
+    if (!fileUrl) return;
+    try {
+      const token = await getAuthToken();
+      const response = await fetch('/api/delete', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ urlToDelete: fileUrl }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Falha ao deletar o arquivo.');
+      }
+
+      console.log('Arquivo deletado via API com sucesso.');
+    } catch (error) {
+      console.error('Erro ao deletar via API:', error);
+      throw error;
     }
   }
 
@@ -114,7 +111,6 @@ export const useTenant = () => {
     try {
       let q = query(agendamentosCollection())
 
-      // Aplicar filtros se fornecidos
       if (filters.status) {
         q = query(q, where('Status', '==', filters.status))
       }
@@ -131,7 +127,6 @@ export const useTenant = () => {
       const snapshot = await getDocs(q)
       const result = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
 
-      console.log(`[FETCH AGENDAMENTOS] ${result.length} agendamentos encontrados`)
       return result
     } catch (error) {
       console.error('Erro ao buscar agendamentos:', error)
@@ -155,7 +150,6 @@ export const useTenant = () => {
 
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const result = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-        console.log(`[REALTIME UPDATE] ${result.length} agendamentos recebidos.`)
         callback(result)
       }, (error) => {
         console.error('Erro no listener de agendamentos:', error)
@@ -175,7 +169,6 @@ export const useTenant = () => {
         criadoEm: new Date().toISOString(),
         atualizadoEm: new Date().toISOString(),
       })
-      // Retorna o documento recém-criado para atualização reativa na UI
       const newDoc = await getDoc(docRef)
       return { id: newDoc.id, ...newDoc.data() }
     } catch (error) {
@@ -191,7 +184,6 @@ export const useTenant = () => {
         ...dadosAtualizacao,
         atualizadoEm: new Date().toISOString(),
       })
-      // Retorna o documento atualizado para atualização reativa na UI
       const updatedDoc = await getDoc(docRef)
       return { id: updatedDoc.id, ...updatedDoc.data() }
     } catch (error) {
@@ -237,13 +229,11 @@ export const useTenant = () => {
       const snapshot = await getDocs(q)
       const result = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
 
-      console.log(`[FETCH SERVICOS] ${result.length} serviços encontrados`)
       return result
     } catch (error) {
       console.error('Erro ao buscar serviços:', error)
 
       if (error.code === 'permission-denied') {
-        console.warn('Sem permissão para acessar serviços, retornando lista vazia')
         return []
       }
 
@@ -294,13 +284,11 @@ export const useTenant = () => {
       const docSnap = await getDoc(docRef)
       const result = docSnap.exists() ? docSnap.data() : null
 
-      console.log(`[FETCH HORARIO] Dia ${diaDaSemana}:`, result ? 'encontrado' : 'não configurado')
       return result
     } catch (error) {
       console.error('Erro ao buscar horário:', error)
 
       if (error.code === 'permission-denied') {
-        console.warn('Sem permissão para acessar horários')
         return null
       }
 
@@ -360,7 +348,6 @@ export const useTenant = () => {
     }
   }
 
-  // ... (demais funções existentes permanecem iguais)
     // UTILITÁRIOS
     const formatCurrency = (valor) => {
         return (valor || 0).toLocaleString('pt-BR', {
