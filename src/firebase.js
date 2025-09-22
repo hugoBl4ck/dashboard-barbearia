@@ -3,6 +3,7 @@
 import { initializeApp } from "firebase/app";
 import { getFirestore } from "firebase/firestore";
 import { getAuth } from "firebase/auth"; // Importa o serviço de autenticação
+import { getStorage } from "firebase/storage"; // Importa o serviço de Storage
 
 // Monta o objeto de configuração a partir de variáveis de ambiente individuais
 const firebaseConfig = {
@@ -23,6 +24,7 @@ if (!firebaseConfig.apiKey) {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app); // Inicializa o serviço de autenticação
+const storage = getStorage(app); // Inicializa o serviço de Storage
 
 // Exporta os serviços para serem usados em outros arquivos
-export { app, db, auth };
+export { app, db, auth, storage };

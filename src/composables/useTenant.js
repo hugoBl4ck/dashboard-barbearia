@@ -1,4 +1,4 @@
-// composables/useTenant.js (VERSÃO CORRIGIDA)
+// composables/useTenant.js (VERSÃO COM STORAGE)
 import { computed, readonly } from 'vue'
 import { useAuth } from './useAuth'
 import {
@@ -15,15 +15,19 @@ import {
   deleteDoc,
   onSnapshot,
 } from 'firebase/firestore'
-import { db } from '@/firebase'
+import { db, storage } from '@/firebase' // Importa STORAGE
+import {
+  ref as storageRef,
+  uploadBytesResumable,
+  getDownloadURL,
+  deleteObject,
+} from 'firebase/storage' // Importa funções do Storage
 
 export const useTenant = () => {
   const { barbeariaId, barbeariaInfo } = useAuth()
 
-  // Verificar se tenant está carregado
   const isTenantReady = computed(() => !!barbeariaId.value)
 
-  // CORREÇÃO: Validação mais robusta antes de acessar o Firebase
   const validateTenantAccess = () => {
     if (!barbeariaId.value) {
       throw new Error('Barbearia ID não disponível. Faça login novamente.')
@@ -31,19 +35,79 @@ export const useTenant = () => {
     return barbeariaId.value
   }
 
-  // Construir path da coleção para o tenant atual
-  const getCollection = (collectionName) => {
+  // ... (funções existentes de getCollection, getTenantDoc, etc., permanecem iguais)
+    // Construir path da coleção para o tenant atual
+    const getCollection = (collectionName) => {
+        const tenantId = validateTenantAccess()
+        return collection(db, `barbearias/${tenantId}/${collectionName}`)
+    }
+
+    // Construir path do documento para o tenant atual
+    const getTenantDoc = (collectionName, docId) => {
+        const tenantId = validateTenantAccess()
+        return doc(db, `barbearias/${tenantId}/${collectionName}`, docId)
+    }
+
+  // --- NOVAS FUNÇÕES DE STORAGE ---
+
+  /**
+   * Faz upload de um arquivo para o Firebase Storage.
+   * @param {File} file - O arquivo a ser enviado.
+   * @param {string} path - O caminho de destino no Storage (ex: 'logos', 'gallery').
+   * @returns {Promise<string>} - A URL de download do arquivo.
+   */
+  const uploadFile = async (file, path) => {
     const tenantId = validateTenantAccess()
-    return collection(db, `barbearias/${tenantId}/${collectionName}`)
+    const uniqueName = `${Date.now()}-${file.name}`
+    const fileRef = storageRef(storage, `barbearias/${tenantId}/${path}/${uniqueName}`)
+
+    const uploadTask = uploadBytesResumable(fileRef, file)
+
+    return new Promise((resolve, reject) => {
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          // Opcional: pode-se emitir o progresso aqui
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100
+          console.log('Upload is ' + progress + '% done')
+        },
+        (error) => {
+          console.error('Erro no upload:', error)
+          reject(new Error(`Falha no upload do arquivo: ${error.message}`))
+        },
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref)
+          resolve(downloadURL)
+        },
+      )
+    })
   }
 
-  // Construir path do documento para o tenant atual
-  const getTenantDoc = (collectionName, docId) => {
-    const tenantId = validateTenantAccess()
-    return doc(db, `barbearias/${tenantId}/${collectionName}`, docId)
+  /**
+   * Exclui um arquivo do Firebase Storage usando sua URL.
+   * @param {string} fileUrl - A URL do arquivo a ser excluído.
+   * @returns {Promise<void>}
+   */
+  const deleteFileByUrl = async (fileUrl) => {
+    if (!fileUrl) return
+    try {
+      const fileRef = storageRef(storage, fileUrl)
+      await deleteObject(fileRef)
+      console.log('Arquivo excluído com sucesso:', fileUrl)
+    } catch (error) {
+      // Ignora erro de objeto não encontrado (pode já ter sido excluído)
+      if (error.code === 'storage/object-not-found') {
+        console.warn('Arquivo não encontrado no Storage (pode já ter sido excluído):', fileUrl)
+        return
+      }
+      console.error('Erro ao excluir arquivo:', error)
+      throw new Error(`Falha ao excluir arquivo: ${error.message}`)
+    }
   }
 
-  // MÉTODOS PARA AGENDAMENTOS
+  // --- FIM DAS NOVAS FUNÇÕES DE STORAGE ---
+
+  // MÉTODOS PARA AGENDAMENTOS (sem alterações)
   const agendamentosCollection = () => getCollection('agendamentos')
 
   const fetchAgendamentos = async (filters = {}) => {
@@ -157,7 +221,7 @@ export const useTenant = () => {
     }
   }
 
-  // MÉTODOS PARA SERVIÇOS
+  // MÉTODOS PARA SERVIÇOS (sem alterações)
   const servicosCollection = () => getCollection('servicos')
 
   const fetchServicos = async (apenasAtivos = true) => {
@@ -178,7 +242,6 @@ export const useTenant = () => {
     } catch (error) {
       console.error('Erro ao buscar serviços:', error)
 
-      // CORREÇÃO: Se não há serviços, retorna array vazio ao invés de erro
       if (error.code === 'permission-denied') {
         console.warn('Sem permissão para acessar serviços, retornando lista vazia')
         return []
@@ -217,7 +280,6 @@ export const useTenant = () => {
 
   const deleteServico = async (servicoId) => {
     try {
-      // Soft delete - apenas marcar como inativo
       await updateServico(servicoId, { ativo: false })
     } catch (error) {
       console.error('Erro ao deletar serviço:', error)
@@ -225,7 +287,7 @@ export const useTenant = () => {
     }
   }
 
-  // MÉTODOS PARA HORÁRIOS
+  // MÉTODOS PARA HORÁRIOS (sem alterações)
   const fetchHorario = async (diaDaSemana) => {
     try {
       const docRef = getTenantDoc('horarios', String(diaDaSemana))
@@ -237,7 +299,6 @@ export const useTenant = () => {
     } catch (error) {
       console.error('Erro ao buscar horário:', error)
 
-      // CORREÇÃO: Se não há horário configurado, retorna null ao invés de erro
       if (error.code === 'permission-denied') {
         console.warn('Sem permissão para acessar horários')
         return null
@@ -270,7 +331,7 @@ export const useTenant = () => {
     }
   }
 
-  // MÉTODOS PARA CONFIGURAÇÕES DA BARBEARIA
+  // MÉTODOS PARA CONFIGURAÇÕES DA BARBEARIA (sem alterações)
   const updateBarbeariaConfig = async (novasConfiguracoes) => {
     try {
       const tenantId = validateTenantAccess()
@@ -299,49 +360,55 @@ export const useTenant = () => {
     }
   }
 
-  // UTILITÁRIOS
-  const formatCurrency = (valor) => {
-    return (valor || 0).toLocaleString('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    })
-  }
-
-  // Calcular estatísticas do dia
-  const calcularEstatisticasDia = (agendamentos, data) => {
-    try {
-      const dataStr = data.toISOString().split('T')[0]
-      const agendamentosDoDia = agendamentos.filter(
-        (apt) => new Date(apt.DataHoraISO).toISOString().split('T')[0] === dataStr,
-      )
-
-      const agendados = agendamentosDoDia.filter(
-        (apt) => apt.Status === 'Agendado' || apt.Status === 'Concluído',
-      )
-      const faturamento = agendados.reduce((sum, apt) => sum + (apt.preco || 0), 0)
-
-      return {
-        total: agendamentosDoDia.length,
-        agendados: agendados.length,
-        faturamento,
-        faturamentoFormatado: formatCurrency(faturamento),
-      }
-    } catch (error) {
-      console.error('Erro ao calcular estatísticas:', error)
-      return {
-        total: 0,
-        agendados: 0,
-        faturamento: 0,
-        faturamentoFormatado: formatCurrency(0),
-      }
+  // ... (demais funções existentes permanecem iguais)
+    // UTILITÁRIOS
+    const formatCurrency = (valor) => {
+        return (valor || 0).toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+        })
     }
-  }
+
+    // Calcular estatísticas do dia
+    const calcularEstatisticasDia = (agendamentos, data) => {
+        try {
+        const dataStr = data.toISOString().split('T')[0]
+        const agendamentosDoDia = agendamentos.filter(
+            (apt) => new Date(apt.DataHoraISO).toISOString().split('T')[0] === dataStr,
+        )
+
+        const agendados = agendamentosDoDia.filter(
+            (apt) => apt.Status === 'Agendado' || apt.Status === 'Concluído',
+        )
+        const faturamento = agendados.reduce((sum, apt) => sum + (apt.preco || 0), 0)
+
+        return {
+            total: agendamentosDoDia.length,
+            agendados: agendados.length,
+            faturamento,
+            faturamentoFormatado: formatCurrency(faturamento),
+        }
+        } catch (error) {
+        console.error('Erro ao calcular estatísticas:', error)
+        return {
+            total: 0,
+            agendados: 0,
+            faturamento: 0,
+            faturamentoFormatado: formatCurrency(0),
+        }
+        }
+    }
+
 
   return {
     // Estado
     barbeariaId: readonly(barbeariaId),
     barbeariaInfo: readonly(barbeariaInfo),
     isTenantReady,
+
+    // --- EXPORTA NOVAS FUNÇÕES ---
+    uploadFile,
+    deleteFileByUrl,
 
     // Métodos de agendamentos
     fetchAgendamentos,
