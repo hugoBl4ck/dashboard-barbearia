@@ -47,6 +47,12 @@ const router = createRouter({
       path: '/cliente/:barbeariaId',
       name: 'ClientLandingPage',
       component: () => import('../views/ClientLandingPageView.vue')
+    },
+    {
+      path: '/horarios',
+      name: 'horarios',
+      component: () => import('../views/HorariosView.vue'),
+      beforeEnter: authGuard
     }
   ]
 })

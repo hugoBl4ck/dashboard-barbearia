@@ -7,9 +7,7 @@
             <v-card class="login-card mx-auto" elevation="8" rounded="lg">
               <!-- HEADER -->
               <div class="login-header text-center pa-8">
-                <v-avatar size="80" class="mb-4" color="primary">
-                  <v-icon size="40" color="white">mdi-content-cut</v-icon>
-                </v-avatar>
+                <img src="@/assets/GESTAO BARBEARIA APP LOGO.png" alt="Logo da Barbearia" style="width: 100px; height: auto; margin-bottom: 1rem;" />
                 <h1 class="text-h4 font-weight-bold mb-2">BarberApp</h1>
                 <p class="text-body-2 text-medium-emphasis">Sistema de Gestão para Barbearias</p>
               </div>

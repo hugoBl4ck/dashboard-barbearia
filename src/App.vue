@@ -47,12 +47,8 @@ const router = useRouter();
 
 // Condições para exibir o botão de voltar
 const showBackButton = computed(() => {
-  const nonBackButtonRoutes = ['/', '/login', '/cliente/:barbeariaId'];
-  // Confere se a rota atual corresponde a alguma das rotas que não devem ter o botão
-  const isNonBackButtonRoute = nonBackButtonRoutes.some(r => route.matched.some(m => m.path === r));
-  
-  // Mostra o botão apenas em telas móveis e se não for uma das rotas excluídas
-  return mobile.value && !isNonBackButtonRoute;
+  const nonBackButtonRoutes = ['home', 'Login', 'ClientLandingPage'];
+  return mobile.value && !nonBackButtonRoutes.includes(route.name);
 });
 
 const goBack = () => {

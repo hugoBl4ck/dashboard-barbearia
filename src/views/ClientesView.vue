@@ -28,115 +28,110 @@
       </v-col>
     </v-row>
 
-    <!-- TABELA DE DADOS EXPANSÍVEL -->
-    <v-row v-if="!loading && clientData.length > 0">
-      <v-col>
-        <v-card class="data-table-card">
-          <v-card-title class="d-flex align-center pa-4">
-            <v-icon class="mr-2">mdi-account-search</v-icon>
-            Lista de Clientes
-            <v-spacer></v-spacer>
-            <v-text-field
-              v-model="search"
-              label="Buscar cliente..."
-              variant="outlined"
-              density="compact"
-              hide-details
-              prepend-inner-icon="mdi-magnify"
-              style="max-width: 300px"
-            ></v-text-field>
-          </v-card-title>
+    <div v-if="!loading && clientData.length > 0">
+      <!-- VISTA DE TABELA PARA DESKTOP -->
+      <v-card class="data-table-card" v-if="!mobile">
+        <v-card-title class="d-flex align-center pa-4">
+          <v-icon class="mr-2">mdi-account-search</v-icon>
+          Lista de Clientes
+          <v-spacer></v-spacer>
+          <v-text-field
+            v-model="search"
+            label="Buscar cliente..."
+            variant="outlined"
+            density="compact"
+            hide-details
+            prepend-inner-icon="mdi-magnify"
+            style="max-width: 300px"
+          ></v-text-field>
+        </v-card-title>
+        <v-divider></v-divider>
+        <div class="table-responsive">
+          <v-data-table
+            v-model:expanded="expanded"
+            :headers="headers"
+            :items="clientData"
+            :loading="loading"
+            :search="search"
+            item-value="telefone"
+            show-expand
+            class="elevation-0"
+          >
+            <template v-slot:expanded-row="{ columns, item }">
+              <tr>
+                <td :colspan="columns.length" class="pa-0">
+                  <v-list class="expanded-list">
+                    <v-list-item v-for="agendamento in item.agendamentos" :key="agendamento.id" class="expanded-item">
+                      <v-list-item-title class="d-flex align-center">
+                        <v-chip size="small" class="mr-4">{{ agendamento.DataHoraFormatada.split(' ')[0] }}</v-chip>
+                        <div>
+                          <div>{{ agendamento.servicoNome }}</div>
+                          <v-chip :color="getStatusColor(agendamento.Status)" size="x-small" class="mt-1" label>{{ agendamento.Status }}</v-chip>
+                        </div>
+                      </v-list-item-title>
+                      <template v-slot:append>
+                        <div class="d-flex align-center">
+                          <v-text-field
+                            v-model.number="agendamento.precoEditavel"
+                            type="number"
+                            variant="outlined"
+                            density="compact"
+                            hide-details
+                            prefix="R$"
+                            style="width: 120px"
+                            class="mr-2"
+                            @click.stop
+                          ></v-text-field>
+                          <v-btn icon size="small" variant="text" color="primary" @click.stop="salvarPreco(agendamento)" :disabled="agendamento.preco === agendamento.precoEditavel">
+                            <v-icon>mdi-content-save</v-icon>
+                          </v-btn>
+                        </div>
+                      </template>
+                    </v-list-item>
+                  </v-list>
+                </td>
+              </tr>
+            </template>
+            <template v-slot:item.nome="{ item }">
+              <div class="font-weight-bold">{{ item.nome }}</div>
+            </template>
+            <template v-slot:item.totalGasto="{ item }">
+              <span class="text-green font-weight-medium">{{ item.totalGasto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}</span>
+            </template>
+            <template v-slot:item.ultimoServico="{ item }">
+              <v-chip size="small" variant="tonal">{{ item.ultimoServico }}</v-chip>
+            </template>
+          </v-data-table>
+        </div>
+      </v-card>
 
-          <v-divider></v-divider>
-
-          <div class="table-responsive">
-            <v-data-table
-              v-model:expanded="expanded"
-              :headers="headers"
-              :items="clientData"
-              :loading="loading"
-              :search="search"
-              item-value="telefone"
-              show-expand
-              class="elevation-0"
-            >
-              <!-- Slot para a linha expandida -->
-              <template v-slot:expanded-row="{ columns, item }">
-                <tr>
-                  <td :colspan="columns.length" class="pa-0">
-                    <v-list class="expanded-list">
-                      <v-list-item
-                        v-for="agendamento in item.agendamentos"
-                        :key="agendamento.id"
-                        class="expanded-item"
-                      >
-                        <v-list-item-title class="d-flex align-center">
-                          <v-chip size="small" class="mr-4">{{
-                            agendamento.DataHoraFormatada.split(' ')[0]
-                          }}</v-chip>
-                          <div>
-                            <div>{{ agendamento.servicoNome }}</div>
-                            <!-- CHIP DE STATUS VISUAL -->
-                            <v-chip
-                              :color="getStatusColor(agendamento.Status)"
-                              size="x-small"
-                              class="mt-1"
-                              label
-                            >
-                              {{ agendamento.Status }}
-                            </v-chip>
-                          </div>
-                        </v-list-item-title>
-  
-                        <template v-slot:append>
-                          <div class="d-flex align-center">
-                            <!-- Campo de Preço Editável -->
-                            <v-text-field
-                              v-model.number="agendamento.precoEditavel"
-                              type="number"
-                              variant="outlined"
-                              density="compact"
-                              hide-details
-                              prefix="R$"
-                              style="width: 120px"
-                              class="mr-2"
-                              @click.stop
-                            ></v-text-field>
-                            <v-btn
-                              icon
-                              size="small"
-                              variant="text"
-                              color="primary"
-                              @click.stop="salvarPreco(agendamento)"
-                              :disabled="agendamento.preco === agendamento.precoEditavel"
-                            >
-                              <v-icon>mdi-content-save</v-icon>
-                            </v-btn>
-                          </div>
-                        </template>
-                      </v-list-item>
-                    </v-list>
-                  </td>
-                </tr>
+      <!-- VISTA DE LISTA/CARDS PARA MOBILE -->
+      <div v-else>
+        <v-text-field
+          v-model="search"
+          label="Buscar cliente..."
+          variant="outlined"
+          density="compact"
+          hide-details
+          prepend-inner-icon="mdi-magnify"
+          class="mb-4"
+        ></v-text-field>
+        <v-list lines="two" class="pa-0">
+          <v-card v-for="item in clientData.filter(c => c.nome.toLowerCase().includes(search.toLowerCase()))" :key="item.telefone" class="mb-3 client-card">
+            <v-list-item>
+              <v-list-item-title class="font-weight-bold">{{ item.nome }}</v-list-item-title>
+              <v-list-item-subtitle>{{ item.telefone }}</v-list-item-subtitle>
+              <template v-slot:append>
+                <div class="text-right">
+                  <div class="font-weight-bold text-green">{{ item.totalGasto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) }}</div>
+                  <div class="text-caption">{{ item.visitas }} visitas</div>
+                </div>
               </template>
-  
-              <!-- Slots para formatação (iguais ao anterior) -->
-              <template v-slot:item.nome="{ item }">
-                <div class="font-weight-bold">{{ item.nome }}</div>
-              </template>
-              <template v-slot:item.totalGasto="{ item }">
-                <span class="text-green font-weight-medium">{{
-                  item.totalGasto.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
-                }}</span>
-              </template>
-              <template v-slot:item.ultimoServico="{ item }">
-                <v-chip size="small" variant="tonal">{{ item.ultimoServico }}</v-chip>
-              </template>
-            </v-data-table>
-          </div>
-        </v-card>
-      </v-col>
-    </v-row>
+            </v-list-item>
+          </v-card>
+        </v-list>
+      </div>
+    </div>
   </v-container>
 </template>
 
@@ -156,6 +151,10 @@
 .expanded-item:last-child {
   border-bottom: none;
 }
+.client-card {
+  border-radius: 12px;
+  border: 1px solid rgba(var(--v-theme-on-surface), 0.1);
+}
 
 @media (max-width: 600px) {
   .table-responsive {
@@ -166,9 +165,11 @@
 
 <script setup>
 import { ref, computed, watchEffect } from 'vue'
+import { useDisplay } from 'vuetify'
 import { useTenant } from '@/composables/useTenant'
 import EmptyState from '@/components/EmptyState.vue'
 
+const { mobile } = useDisplay()
 const loading = ref(true)
 const addingClient = ref(false)
 const allAppointments = ref([])
