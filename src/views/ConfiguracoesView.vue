@@ -110,7 +110,7 @@
     </v-row>
 
     <!-- Snackbar para feedback -->
-    <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="3000">
+    <v-snackbar v-model="snackbar.show" :color="snackbar.color" :timeout="4000">
       {{ snackbar.message }}
     </v-snackbar>
   </v-container>
@@ -120,6 +120,7 @@
 import { ref, onMounted } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { useTenant } from '@/composables/useTenant';
+import { compressImage } from '@/composables/useImageProcessor'; // IMPORTA O OTIMIZADOR
 
 // Composables
 const { barbeariaInfo } = useAuth();
@@ -170,17 +171,28 @@ const salvarConfiguracoes = async () => {
 
     // 1. Upload da nova logo (se houver)
     if (newLogoFile.value.length > 0) {
-      const file = newLogoFile.value[0];
-      // Deleta a logo antiga antes de enviar a nova
+      showSnackbar('Otimizando e enviando logo...', 'info');
+      // Deleta a logo antiga (com try/catch para não travar o processo)
       if (configuracoes.value.logoUrl) {
-        await deleteFileByUrl(configuracoes.value.logoUrl);
+        try {
+          await deleteFileByUrl(configuracoes.value.logoUrl);
+        } catch (e) {
+          console.warn("Falha ao deletar a logo antiga, mas continuando o processo:", e.message);
+        }
       }
-      finalLogoUrl = await uploadFile(file, 'logo');
+      // Otimiza e faz upload da nova logo
+      const file = newLogoFile.value[0];
+      const compressedFile = await compressImage(file);
+      finalLogoUrl = await uploadFile(compressedFile, 'logo');
     }
 
     // 2. Upload das novas imagens da galeria (se houver)
     if (newGalleryFiles.value.length > 0) {
-      const uploadPromises = newGalleryFiles.value.map(file => uploadFile(file, 'gallery'));
+      showSnackbar('Otimizando e enviando imagens da galeria...', 'info');
+      // Otimiza todas as novas imagens em paralelo
+      const compressedFiles = await Promise.all(newGalleryFiles.value.map(compressImage));
+      // Faz upload de todas as imagens otimizadas em paralelo
+      const uploadPromises = compressedFiles.map(file => uploadFile(file, 'gallery'));
       const newUrls = await Promise.all(uploadPromises);
       finalGalleryUrls.push(...newUrls);
     }
@@ -226,7 +238,7 @@ const handleDeleteGalleryImage = async (url, index) => {
     updatedGallery.splice(index, 1);
     
     // 3. Atualiza o Firestore
-    await updateBarbeariaConfig({ galleryUrls: updatedGallery });
+    await updateBarbeariaConfig({ ...configuracoes.value, galleryUrls: updatedGallery });
 
     // 4. Atualiza o estado local
     configuracoes.value.galleryUrls = updatedGallery;
