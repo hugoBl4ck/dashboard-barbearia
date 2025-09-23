@@ -1,14 +1,16 @@
 <template>
-  <v-app>
+  <v-app v-if="!loading && barbeariaInfo">
     <!-- HEADER -->
     <v-app-bar color="primary" elevation="4" height="80">
       <v-container class="d-flex align-center">
         <div class="d-flex align-center">
           <v-avatar size="50" class="mr-4" color="white">
-            <v-icon size="30" color="primary">mdi-content-cut</v-icon>
+            <!-- Mostra a logo se existir, senão mostra o ícone -->
+            <v-img v-if="config.logoUrl" :src="config.logoUrl" alt="Logo da Barbearia"></v-img>
+            <v-icon v-else size="30" color="primary">mdi-content-cut</v-icon>
           </v-avatar>
           <div>
-            <h2 class="text-h5 font-weight-bold text-white">{{ barbeariaInfo?.nome || 'Barbearia' }}</h2>
+            <h2 class="text-h5 font-weight-bold text-white">{{ barbeariaInfo.nome || 'Barbearia' }}</h2>
             <p class="text-caption text-white opacity-80 ma-0">Profissional em cortes masculinos</p>
           </div>
         </div>
@@ -43,31 +45,30 @@
                     Ver Serviços
                   </v-btn>
                 </div>
-                <div class="hero-stats mt-8">
-                  <div class="d-flex flex-wrap gap-6">
-                    <div class="stat-item">
-                      <div class="stat-number">500+</div>
-                      <div class="stat-label">Clientes Satisfeitos</div>
-                    </div>
-                    <div class="stat-item">
-                      <div class="stat-number">5★</div>
-                      <div class="stat-label">Avaliação</div>
-                    </div>
-                    <div class="stat-item">
-                      <div class="stat-number">3+</div>
-                      <div class="stat-label">Anos de Experiência</div>
-                    </div>
-                  </div>
-                </div>
               </div>
             </v-col>
             <v-col cols="12" md="6">
-              <div class="hero-image">
-                <div class="image-placeholder">
-                  <v-icon size="120" color="primary" class="mb-4">mdi-content-cut</v-icon>
-                  <p class="text-h6">Imagem da Barbearia</p>
-                </div>
-              </div>
+              <v-card class="hero-image" elevation="8">
+                <!-- Usa a primeira imagem da galeria como hero, ou a logo, ou um placeholder -->
+                <v-img
+                  :src="config.galleryUrls?.[0] || config.logoUrl || ''"
+                  aspect-ratio="1"
+                  cover
+                  class="rounded-lg"
+                >
+                  <template v-slot:placeholder>
+                    <div class="d-flex align-center justify-center fill-height">
+                      <v-progress-circular color="primary" indeterminate></v-progress-circular>
+                    </div>
+                  </template>
+                  <template v-slot:error>
+                     <div class="image-placeholder">
+                        <v-icon size="120" color="primary" class="mb-4">mdi-camera-off</v-icon>
+                        <p class="text-h6">Imagem não disponível</p>
+                      </div>
+                  </template>
+                </v-img>
+              </v-card>
             </v-col>
           </v-row>
         </v-container>
@@ -81,7 +82,7 @@
             <p class="section-subtitle">Oferecemos uma gama completa de serviços para o homem moderno</p>
           </div>
           
-          <v-row>
+          <v-row v-if="servicosDisponiveis.length > 0">
             <v-col v-for="(servico, index) in servicosDisponiveis" :key="servico.id" cols="12" sm="6" md="4">
               <v-card class="service-card h-100" elevation="4" :class="{ 'featured': index === 1 }">
                 <div class="service-icon">
@@ -105,11 +106,12 @@
               </v-card>
             </v-col>
           </v-row>
+          <v-alert v-else type="info" variant="tonal">Nenhum serviço cadastrado ainda.</v-alert>
         </v-container>
       </section>
 
       <!-- SEÇÃO GALERIA -->
-      <section id="galeria" class="gallery-section">
+      <section id="galeria" class="gallery-section" v-if="config.galleryUrls && config.galleryUrls.length > 0">
         <v-container>
           <div class="text-center mb-12">
             <h2 class="section-title">Galeria de Cortes</h2>
@@ -117,17 +119,20 @@
           </div>
           <v-row>
             <v-col
-              v-for="i in 6"
+              v-for="(url, i) in config.galleryUrls"
               :key="i"
               cols="12"
               sm="6"
               md="4"
             >
               <v-card class="gallery-card" elevation="4">
-                <div class="image-placeholder">
-                  <v-icon size="80" color="primary" class="mb-4">mdi-camera</v-icon>
-                  <p class="text-h6">Imagem da Barbearia</p>
-                </div>
+                <v-img :src="url" class="gallery-image" aspect-ratio="1" cover>
+                  <template v-slot:placeholder>
+                    <div class="d-flex align-center justify-center fill-height">
+                      <v-progress-circular color="primary" indeterminate></v-progress-circular>
+                    </div>
+                  </template>
+                </v-img>
               </v-card>
             </v-col>
           </v-row>
@@ -140,7 +145,7 @@
           <div class="text-center mb-12">
             <h2 class="section-title text-white">Agende seu Horário</h2>
             <p class="section-subtitle text-white opacity-90">
-              Entre em contato conosco e garante já seu horário
+              Entre em contato conosco e garanta já seu horário
             </p>
           </div>
           
@@ -163,6 +168,7 @@
                   block 
                   @click="abrirWhatsApp"
                   class="mb-4 font-weight-bold"
+                  :disabled="!config.whatsapp"
                 >
                   <v-icon start>mdi-whatsapp</v-icon>
                   Agendar pelo WhatsApp
@@ -173,27 +179,27 @@
                 <div class="contact-info">
                   <h4 class="text-h6 mb-4">Outras formas de contato:</h4>
                   
-                  <div class="contact-item">
+                  <div class="contact-item" v-if="config.telefone">
                     <v-icon color="primary" class="mr-3">mdi-phone</v-icon>
                     <div>
                       <div class="font-weight-medium">Telefone</div>
-                      <div class="text-body-2">(77) 9999-9999</div>
+                      <div class="text-body-2">{{ config.telefone }}</div>
                     </div>
                   </div>
                   
-                  <div class="contact-item">
-                    <v-icon color="primary" class="mr-3">mdi-instagram</v-icon>
-                    <div>
+                  <div class="contact-item" v-if="config.instagram">
+                     <v-icon color="primary" class="mr-3">mdi-instagram</v-icon>
+                    <a :href="`https://instagram.com/${config.instagram.replace('@','')}`" target="_blank" class="text-decoration-none text-black">
                       <div class="font-weight-medium">Instagram</div>
-                      <div class="text-body-2">@barbeariaexemplo</div>
-                    </div>
+                      <div class="text-body-2">{{ config.instagram }}</div>
+                    </a>
                   </div>
                   
-                  <div class="contact-item">
+                  <div class="contact-item" v-if="config.endereco">
                     <v-icon color="primary" class="mr-3">mdi-map-marker</v-icon>
                     <div>
                       <div class="font-weight-medium">Endereço</div>
-                      <div class="text-body-2">Rua Principal, 123 - Centro</div>
+                      <div class="text-body-2">{{ config.endereco }}</div>
                     </div>
                   </div>
                 </div>
@@ -236,29 +242,23 @@
           <div class="text-center">
             <div class="footer-logo mb-4">
               <v-avatar size="60" color="primary">
-                <v-icon size="30" color="white">mdi-content-cut</v-icon>
+                <v-img v-if="config.logoUrl" :src="config.logoUrl" alt="Logo da Barbearia"></v-img>
+                <v-icon v-else size="30" color="white">mdi-content-cut</v-icon>
               </v-avatar>
-              <h3 class="text-h5 mt-2">{{ barbeariaInfo?.nome || 'Barbearia' }}</h3>
+              <h3 class="text-h5 mt-2">{{ barbeariaInfo.nome || 'Barbearia' }}</h3>
             </div>
             
             <div class="footer-social mb-4">
-              <v-btn icon variant="text" color="white" class="mx-2">
+              <v-btn icon variant="text" color="white" class="mx-2" @click="abrirWhatsApp" :disabled="!config.whatsapp">
                 <v-icon>mdi-whatsapp</v-icon>
               </v-btn>
-              <v-btn icon variant="text" color="white" class="mx-2">
+              <v-btn icon variant="text" color="white" class="mx-2" :href="`https://instagram.com/${config.instagram.replace('@','')}`" target="_blank" :disabled="!config.instagram">
                 <v-icon>mdi-instagram</v-icon>
-              </v-btn>
-              <v-btn icon variant="text" color="white" class="mx-2">
-                <v-icon>mdi-facebook</v-icon>
               </v-btn>
             </div>
             
             <p class="text-body-2 opacity-80">
-              © 2025 {{ barbeariaInfo?.nome || 'Barbearia' }}. Todos os direitos reservados.
-            </p>
-            
-            <p class="text-caption opacity-60 mt-2">
-              Powered by BarberApp
+              © 2025 {{ barbeariaInfo.nome || 'Barbearia' }}. Todos os direitos reservados.
             </p>
           </div>
         </v-container>
@@ -267,6 +267,12 @@
 
     <!-- CHAT FLUTUANTE -->
     <TypebotChat :typebot-id="typebotId" :prefilled-variables="{ barbeariaId: barbeariaId }" :show-floating-button="true" :theme="chatTheme" button-text="💬 Ajuda" />
+  </v-app>
+
+  <v-app v-else>
+    <div class="d-flex justify-center align-center fill-height">
+        <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
+    </div>
   </v-app>
 </template>
 
@@ -277,37 +283,35 @@ import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firesto
 import { db } from '@/firebase'
 import TypebotChat from '@/components/TypebotChat.vue'
 
-// Props da rota
 const route = useRoute()
 const barbeariaId = route.params.barbeariaId
 
-// Estado
 const loading = ref(true)
 const barbeariaInfo = ref(null)
 const servicosDisponiveis = ref([])
 const horariosConfig = ref({})
 
+// Retorna um objeto de configurações seguro, mesmo que seja nulo
+const config = computed(() => barbeariaInfo.value?.configuracoes || {});
 
-// Configuração do chat
-const typebotId = 'my-typebot-lk5rehg' // ID Fixo para todas as barbearias
+const typebotId = 'my-typebot-lk5rehg'
 const chatTheme = { 
   button: { backgroundColor: '#25D366' }, 
   chatWindow: { backgroundColor: '#FFFFFF' }
 }
 
-// Computeds
 const horariosFormatados = computed(() => {
-  const diasSemana = ['0', '1', '2', '3', '4', '5', '6'] // Domingo a Sábado
+  const diasSemana = ['0', '1', '2', '3', '4', '5', '6']
   const result = {}
   
   diasSemana.forEach(dia => {
-    const config = horariosConfig.value[dia]
-    if (!config || !config.InicioManha) {
+    const horarioDia = horariosConfig.value[dia]
+    if (!horarioDia || !horarioDia.InicioManha) {
       result[dia] = null
     } else {
-      let horario = `${config.InicioManha} - ${config.FimManha || config.FimTarde}`
-      if (config.InicioTarde && config.FimTarde) {
-        horario = `${config.InicioManha}-${config.FimManha} | ${config.InicioTarde}-${config.FimTarde}`
+      let horario = `${horarioDia.InicioManha} - ${horarioDia.FimManha || horarioDia.FimTarde}`
+      if (horarioDia.InicioTarde && horarioDia.FimTarde) {
+        horario = `${horarioDia.InicioManha}-${horarioDia.FimManha} | ${horarioDia.InicioTarde}-${horarioDia.FimTarde}`
       }
       result[dia] = horario
     }
@@ -316,24 +320,23 @@ const horariosFormatados = computed(() => {
   return result
 })
 
-// Métodos
 const fetchBarbeariaData = async () => {
-  if (!barbeariaId) return
+  if (!barbeariaId) {
+      loading.value = false;
+      return;
+  }
   
   loading.value = true
   try {
-    // Buscar informações da barbearia
     const barbeariaDoc = await getDoc(doc(db, 'barbearias', barbeariaId))
     if (barbeariaDoc.exists()) {
       barbeariaInfo.value = { id: barbeariaId, ...barbeariaDoc.data() }
     }
     
-    // Buscar serviços
     const servicosQuery = query(collection(db, `barbearias/${barbeariaId}/servicos`), where('ativo', '==', true))
     const servicosSnapshot = await getDocs(servicosQuery)
     servicosDisponiveis.value = servicosSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
     
-    // Buscar horários
     for (let dia = 0; dia <= 6; dia++) {
       const horarioDoc = await getDoc(doc(db, `barbearias/${barbeariaId}/horarios`, String(dia)))
       if (horarioDoc.exists()) {
@@ -357,13 +360,7 @@ const formatCurrency = (valor) => {
 
 const getNomeDia = (dia) => {
   const nomes = {
-    '0': 'Domingo',
-    '1': 'Segunda',
-    '2': 'Terça', 
-    '3': 'Quarta',
-    '4': 'Quinta',
-    '5': 'Sexta',
-    '6': 'Sábado'
+    '0': 'Domingo', '1': 'Segunda', '2': 'Terça', '3': 'Quarta', '4': 'Quinta', '5': 'Sexta', '6': 'Sábado'
   }
   return nomes[dia] || ''
 }
@@ -392,13 +389,13 @@ const scrollToAgendamento = () => {
 }
 
 const abrirWhatsApp = () => {
-  const numeroWhatsApp = '5577999999999' // Número da barbearia
+  const numero = config.value.whatsapp?.replace(/[^0-9]/g, '');
+  if (!numero) return;
   const mensagem = `Olá! Gostaria de agendar um horário na ${barbeariaInfo.value?.nome || 'barbearia'}.`
-  const url = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(mensagem)}`
+  const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`
   window.open(url, '_blank')
 }
 
-// Lifecycle
 onMounted(() => {
   fetchBarbeariaData()
 })
