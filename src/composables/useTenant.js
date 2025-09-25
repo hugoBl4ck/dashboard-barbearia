@@ -322,15 +322,20 @@ export const useTenant = () => {
   // MÉTODOS PARA CONFIGURAÇÕES DA BARBEARIA (sem alterações)
   const updateBarbeariaConfig = async (novasConfiguracoes) => {
     try {
-      const tenantId = validateTenantAccess()
-      const docRef = doc(db, 'barbearias', tenantId)
-      await updateDoc(docRef, {
-        configuracoes: novasConfiguracoes,
-        atualizadoEm: new Date().toISOString(),
-      })
+      const tenantId = validateTenantAccess();
+      const docRef = doc(db, 'barbearias', tenantId);
+  
+      // Cria um objeto com notação de ponto para atualizar campos aninhados
+      const updates = {};
+      for (const key in novasConfiguracoes) {
+        updates[`configuracoes.${key}`] = novasConfiguracoes[key];
+      }
+      updates['atualizadoEm'] = new Date().toISOString();
+  
+      await updateDoc(docRef, updates);
     } catch (error) {
-      console.error('Erro ao atualizar configurações:', error)
-      throw new Error(`Erro ao atualizar configurações: ${error.message}`)
+      console.error('Erro ao atualizar configurações:', error);
+      throw new Error(`Erro ao atualizar configurações: ${error.message}`);
     }
   }
 
