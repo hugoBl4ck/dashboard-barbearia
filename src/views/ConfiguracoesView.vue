@@ -120,7 +120,7 @@
 import { ref, onMounted } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { useTenant } from '@/composables/useTenant';
-import { compressImage } from '@/composables/useImageProcessor'; // IMPORTA O OTIMIZADOR
+import { compressImage } from '@/composables/useImageProcessor';
 
 // Composables
 const { barbeariaInfo } = useAuth();
@@ -133,13 +133,13 @@ const configuracoes = ref({
   whatsapp: '',
   telefone: '',
   endereco: '',
-  logoUrl: '',       // Armazena a URL da logo existente
-  galleryUrls: [],  // Armazena as URLs da galeria existente
+  logoUrl: '',
+  galleryUrls: [],
 });
 
-// Estado para novos arquivos
-const newLogoFile = ref([]); // v-file-input retorna um array
-const newGalleryFiles = ref([]);
+// Estado para novos arquivos (CORRIGIDO)
+const newLogoFile = ref(null); // Para arquivo único, o padrão é null
+const newGalleryFiles = ref([]); // Para múltiplos, o padrão é array vazio
 
 // Estado do Snackbar
 const snackbar = ref({ show: false, message: '', color: 'success' });
@@ -149,8 +149,8 @@ onMounted(() => {
   if (barbeariaInfo.value && barbeariaInfo.value.configuracoes) {
     const existingConfig = barbeariaInfo.value.configuracoes;
     configuracoes.value = {
-      ...configuracoes.value, // Mantém a estrutura
-      ...existingConfig,      // Sobrescreve com dados do Firebase
+      ...configuracoes.value,
+      ...existingConfig,
       logoUrl: existingConfig.logoUrl || '',
       galleryUrls: existingConfig.galleryUrls || [],
     };
@@ -169,10 +169,9 @@ const salvarConfiguracoes = async () => {
     let finalLogoUrl = configuracoes.value.logoUrl;
     let finalGalleryUrls = [...configuracoes.value.galleryUrls];
 
-    // 1. Upload da nova logo (se houver)
-    if (newLogoFile.value.length > 0) {
+    // 1. Upload da nova logo (se houver) - LÓGICA CORRIGIDA
+    if (newLogoFile.value) { // Verifica se o arquivo existe
       showSnackbar('Otimizando e enviando logo...', 'info');
-      // Deleta a logo antiga (com try/catch para não travar o processo)
       if (configuracoes.value.logoUrl) {
         try {
           await deleteFileByUrl(configuracoes.value.logoUrl);
@@ -180,8 +179,7 @@ const salvarConfiguracoes = async () => {
           console.warn("Falha ao deletar a logo antiga, mas continuando o processo:", e.message);
         }
       }
-      // Otimiza e faz upload da nova logo
-      const file = newLogoFile.value[0];
+      const file = newLogoFile.value; // Acessa o arquivo diretamente
       const compressedFile = await compressImage(file);
       finalLogoUrl = await uploadFile(compressedFile, 'logo');
     }
@@ -189,9 +187,7 @@ const salvarConfiguracoes = async () => {
     // 2. Upload das novas imagens da galeria (se houver)
     if (newGalleryFiles.value.length > 0) {
       showSnackbar('Otimizando e enviando imagens da galeria...', 'info');
-      // Otimiza todas as novas imagens em paralelo
       const compressedFiles = await Promise.all(newGalleryFiles.value.map(compressImage));
-      // Faz upload de todas as imagens otimizadas em paralelo
       const uploadPromises = compressedFiles.map(file => uploadFile(file, 'gallery'));
       const newUrls = await Promise.all(uploadPromises);
       finalGalleryUrls.push(...newUrls);
@@ -213,7 +209,7 @@ const salvarConfiguracoes = async () => {
     // 5. Atualiza o estado local
     configuracoes.value.logoUrl = finalLogoUrl;
     configuracoes.value.galleryUrls = finalGalleryUrls;
-    newLogoFile.value = [];
+    newLogoFile.value = null; // Limpa o estado do arquivo
     newGalleryFiles.value = [];
 
     showSnackbar('Configurações salvas com sucesso!');
@@ -230,19 +226,11 @@ const handleDeleteGalleryImage = async (url, index) => {
   if (!confirm('Tem certeza que deseja excluir esta imagem?')) return;
 
   try {
-    // 1. Deleta do Storage
     await deleteFileByUrl(url);
-
-    // 2. Remove do array local
     const updatedGallery = [...configuracoes.value.galleryUrls];
     updatedGallery.splice(index, 1);
-    
-    // 3. Atualiza o Firestore
     await updateBarbeariaConfig({ ...configuracoes.value, galleryUrls: updatedGallery });
-
-    // 4. Atualiza o estado local
     configuracoes.value.galleryUrls = updatedGallery;
-
     showSnackbar('Imagem excluída com sucesso!');
   } catch (error) {
     console.error("Erro ao excluir imagem:", error);
