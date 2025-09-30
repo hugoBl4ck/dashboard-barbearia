@@ -235,10 +235,11 @@ watch(servicoSelecionado, (novoServico) => {
 const navigateTo = (route) => (currentRoute.value = route)
 
 const abrirLandingPage = () => {
-  if (auth.barbeariaId.value) {
-    window.open(`/cliente/${auth.barbeariaId.value}`, '_blank')
+  const slug = auth.barbeariaInfo.value?.slug;
+  if (slug) {
+    window.open(`/b/${slug}`, '_blank');
   } else {
-    alert('ID da barbearia não encontrado. Não é possível abrir a landing page.')
+    alert('Apelido da barbearia (slug) não encontrado. Não é possível abrir a landing page.');
   }
 }
 

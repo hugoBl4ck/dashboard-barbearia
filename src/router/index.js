@@ -66,8 +66,8 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/cliente/:barbeariaId',
-      name: 'ClientLandingPage',
+      path: '/b/:slug',
+      name: 'PublicBarbershopPage',
       component: () => import('../views/ClientLandingPageView.vue')
     },
     {

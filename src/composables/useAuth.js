@@ -11,10 +11,11 @@ import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
 } from 'firebase/auth'
-import { doc, getDoc, setDoc, collection, Timestamp } from 'firebase/firestore'
+import { doc, getDoc, setDoc, collection, Timestamp, query, where, getDocs } from 'firebase/firestore'
 import { db } from '@/firebase'
 import { useRouter } from 'vue-router'
 import { createInitialTenantData } from '@/firebase/tenantSetup'
+import { slugify } from '@/utils/slugify'
 
 // --- ESTADO REATIVO GLOBAL ---
 export const user = ref(null)
@@ -50,8 +51,25 @@ async function createUserProfile(firebaseUser, additionalData) {
 }
 
 async function createNewBarbearia(nomeBarbearia = 'Nova Barbearia') {
-  const newBarbeariaRef = doc(collection(db, 'barbearias'))
-  const newBarbeariaId = newBarbeariaRef.id
+  const newBarbeariaRef = doc(collection(db, 'barbearias'));
+  const newBarbeariaId = newBarbeariaRef.id;
+
+  // --- Geração de Slug Único ---
+  const baseSlug = slugify(nomeBarbearia);
+  let finalSlug = baseSlug;
+  let counter = 1;
+  while (true) {
+    const slugQuery = query(collection(db, 'barbearias'), where('slug', '==', finalSlug));
+    const slugSnapshot = await getDocs(slugQuery);
+    if (slugSnapshot.empty) {
+      break; // Slug é único
+    }
+    // Se não for único, tenta um novo com um número
+    counter++;
+    finalSlug = `${baseSlug}-${counter}`;
+  }
+  console.log(`[SLUG] Slug final definido como: ${finalSlug}`);
+  // --------------------------
 
   // Calcula as datas do trial
   const trialInicio = Timestamp.now();
@@ -61,23 +79,24 @@ async function createNewBarbearia(nomeBarbearia = 'Nova Barbearia') {
 
   await setDoc(newBarbeariaRef, {
     nome: nomeBarbearia,
+    slug: finalSlug, // <-- SALVA O SLUG
     criadoEm: new Date(),
     ownerId: getAuth().currentUser.uid, // Guarda quem é o dono
 
     // --- NOVOS CAMPOS DE ASSINATURA ---
-    statusAssinatura: 'trialing', // 'trialing', 'active', 'canceled'
+    statusAssinatura: 'trialing', 
     trialInicio: trialInicio,
     trialFim: trialFim,
-    stripeCustomerId: null, // Será preenchido após o primeiro pagamento
-    stripeSubscriptionId: null, // ID da assinatura recorrente
+    stripeCustomerId: null, 
+    stripeSubscriptionId: null, 
     // ------------------------------------
 
     configuracoes: {
       permitirAgendamentoOnline: true,
       intervaloAgendamento: 30
     }
-  })
-  return newBarbeariaId
+  });
+  return newBarbeariaId;
 }
 
 async function checkAndCreateUserOnFirstLogin(firebaseUser) {

@@ -266,12 +266,16 @@
     </v-main>
 
     <!-- CHAT FLUTUANTE -->
-    <TypebotChat :typebot-id="typebotId" :prefilled-variables="{ barbeariaId: barbeariaId }" :show-floating-button="true" :theme="chatTheme" button-text="💬 Ajuda" />
+    <TypebotChat :typebot-id="typebotId" :prefilled-variables="{ barbeariaId: barbeariaInfo?.id }" :show-floating-button="true" :theme="chatTheme" button-text="💬 Ajuda" />
   </v-app>
 
   <v-app v-else>
     <div class="d-flex justify-center align-center fill-height">
-        <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
+      <v-alert v-if="error" type="error" variant="tonal" class="ma-4" max-width="600">
+        <template v-slot:title>Ops! Algo deu errado</template>
+        {{ error }}
+      </v-alert>
+      <v-progress-circular v-else indeterminate color="primary" size="64"></v-progress-circular>
     </div>
   </v-app>
 </template>
@@ -284,9 +288,8 @@ import { db } from '@/firebase'
 import TypebotChat from '@/components/TypebotChat.vue'
 
 const route = useRoute()
-const barbeariaId = route.params.barbeariaId
-
 const loading = ref(true)
+const error = ref(null)
 const barbeariaInfo = ref(null)
 const servicosDisponiveis = ref([])
 const horariosConfig = ref({})
@@ -320,17 +323,14 @@ const horariosFormatados = computed(() => {
   return result
 })
 
-const fetchBarbeariaData = async () => {
-  if (!barbeariaId) {
-      loading.value = false;
-      return;
-  }
-  
-  loading.value = true
+// Função refatorada para buscar os dados detalhados usando o ID
+const fetchBarbeariaDetails = async (barbeariaId) => {
   try {
     const barbeariaDoc = await getDoc(doc(db, 'barbearias', barbeariaId))
     if (barbeariaDoc.exists()) {
       barbeariaInfo.value = { id: barbeariaId, ...barbeariaDoc.data() }
+    } else {
+      throw new Error('Dados detalhados da barbearia não encontrados.');
     }
     
     const servicosQuery = query(collection(db, `barbearias/${barbeariaId}/servicos`), where('ativo', '==', true))
@@ -343,13 +343,40 @@ const fetchBarbeariaData = async () => {
         horariosConfig.value[dia] = horarioDoc.data()
       }
     }
-    
-  } catch (error) {
-    console.error('Erro ao carregar dados da barbearia:', error)
-  } finally {
-    loading.value = false
+  } catch (e) {
+    console.error('Erro ao carregar detalhes da barbearia:', e)
+    error.value = e.message;
   }
 }
+
+onMounted(async () => {
+  const slug = route.params.slug;
+  if (!slug) {
+    error.value = "Slug da barbearia não fornecido na URL.";
+    loading.value = false;
+    return;
+  }
+
+  loading.value = true;
+  try {
+    // 1. Buscar ID da barbearia pelo slug
+    const response = await fetch(`/api/get-barbearia-by-slug?slug=${slug}`);
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData.error || 'Barbearia não encontrada.');
+    }
+    const publicData = await response.json();
+
+    // 2. Com o ID, buscar todos os outros dados da barbearia
+    await fetchBarbeariaDetails(publicData.id);
+
+  } catch (e) {
+    console.error('Erro no processo de carregamento da landing page:', e);
+    error.value = e.message;
+  } finally {
+    loading.value = false;
+  }
+});
 
 const formatCurrency = (valor) => {
   return (valor || 0).toLocaleString('pt-BR', { 
@@ -395,10 +422,6 @@ const abrirWhatsApp = () => {
   const url = `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`
   window.open(url, '_blank')
 }
-
-onMounted(() => {
-  fetchBarbeariaData()
-})
 </script>
 
 <style scoped>
