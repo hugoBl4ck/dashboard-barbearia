@@ -1,54 +1,95 @@
 <template>
-  <div class="billing-container">
-    <h1>Assinatura</h1>
-    <p>Seu período de teste acabou. Escolha um plano para continuar a usar todos os recursos.</p>
+  <v-container class="fill-height">
+    <v-row justify="center" align="center">
+      <v-col cols="12" md="8" lg="6">
+        <v-card class="pa-md-4" elevation="2">
+          <v-card-title class="text-center pt-6">
+            <v-icon size="48" color="primary" class="mb-4">mdi-rocket-launch</v-icon>
+            <h1 class="text-h4 font-weight-bold">Plano Profissional</h1>
+          </v-card-title>
+          <v-card-subtitle class="text-center text-h6 font-weight-regular text-medium-emphasis">
+            Acesse todos os recursos para levar sua barbearia ao próximo nível.
+          </v-card-subtitle>
 
-    <div class="plan">
-      <h2>Plano Profissional</h2>
-      <p class="price">R$ 49,90/mês</p>
-      <ul>
-        <li>✅ Agendamentos Ilimitados</li>
-        <li>✅ Gestão de Clientes</li>
-        <li>✅ Relatórios e Analytics</li>
-        <li>✅ Suporte Prioritário</li>
-      </ul>
-      <button @click="redirectToCheckout" :disabled="loading">
-        {{ loading ? 'Carregando...' : 'Assinar Agora' }}
-      </button>
-    </div>
+          <v-card-text class="py-6">
+            <v-list lines="one">
+              <v-list-item
+                v-for="feature in features"
+                :key="feature.text"
+                :prepend-icon="feature.icon"
+                :title="feature.text"
+              ></v-list-item>
+            </v-list>
+          </v-card-text>
 
-    <div v-if="error" class="error-message">
-      <p>Ocorreu um erro:</p>
-      <p>{{ error }}</p>
-    </div>
-  </div>
+          <v-divider></v-divider>
+
+          <div class="text-center pa-6">
+            <p class="text-h4 font-weight-bold">
+              R$ 49,90
+              <span class="text-h6 font-weight-light text-medium-emphasis">/mês</span>
+            </p>
+          </div>
+
+          <v-card-actions class="pa-6 pt-0">
+            <v-btn
+              color="primary"
+              size="large"
+              block
+              variant="flat"
+              @click="redirectToCheckout"
+              :loading="loading"
+            >
+              Assinar Agora e Desbloquear Tudo
+            </v-btn>
+          </v-card-actions>
+
+          <v-alert v-if="error" type="error" variant="tonal" class="ma-4">
+            <strong>Ocorreu um erro:</strong> {{ error }}
+          </v-alert>
+        </v-card>
+
+        <div class="text-center mt-4">
+          <p class="text-caption text-medium-emphasis">Pagamentos seguros processados pela Stripe.</p>
+        </div>
+      </v-col>
+    </v-row>
+  </v-container>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import { loadStripe } from '@stripe/stripe-js'
-import { useAuth } from '@/composables/useAuth'
+import { ref } from 'vue';
+import { loadStripe } from '@stripe/stripe-js';
+import { useAuth } from '@/composables/useAuth';
 
-// Esta linha carrega o Stripe com a sua chave publicável do arquivo .env
-// O ESLint reclamava porque a variável não era usada. Agora será.
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+// Lista de benefícios do plano
+const features = [
+  { text: 'Agendamentos Online Ilimitados', icon: 'mdi-check-circle-outline' },
+  { text: 'Cadastro de Clientes e Serviços', icon: 'mdi-check-circle-outline' },
+  { text: 'Relatórios de Faturamento', icon: 'mdi-check-circle-outline' },
+  { text: 'Sua Própria Landing Page', icon: 'mdi-check-circle-outline' },
+  { text: 'Suporte Prioritário', icon: 'mdi-check-circle-outline' },
+];
 
-const { barbeariaId } = useAuth()
-const loading = ref(false)
-const error = ref(null)
+// Carrega a instância do Stripe com a chave publicável
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+
+const { barbeariaId } = useAuth();
+const loading = ref(false);
+const error = ref(null);
 
 const redirectToCheckout = async () => {
-  loading.value = true
-  error.value = null
+  loading.value = true;
+  error.value = null;
 
   if (!barbeariaId.value) {
-    error.value = 'ID da barbearia não encontrado. Faça login novamente para continuar.'
-    loading.value = false
-    return
+    error.value = 'ID da barbearia não encontrado. Faça login novamente para continuar.';
+    loading.value = false;
+    return;
   }
 
   try {
-    // 1. Chamar nossa API para criar a sessão de checkout no Stripe
+    // 1. Chamar a API para criar a sessão de checkout no Stripe
     const response = await fetch('/api/create-checkout-session', {
       method: 'POST',
       headers: {
@@ -59,91 +100,30 @@ const redirectToCheckout = async () => {
         priceId: 'price_1Ppgx3G1hJ4n2deFBg5dJ1eE',
         barbeariaId: barbeariaId.value,
       }),
-    })
+    });
 
-    const session = await response.json()
+    const session = await response.json();
 
     if (!response.ok) {
-      throw new Error(session.error?.message || 'Falha ao comunicar com o servidor de pagamento.')
+      throw new Error(session.error?.message || 'Falha ao comunicar com o servidor de pagamento.');
     }
 
     // 2. Usar a 'stripePromise' para redirecionar o cliente para o pagamento
-    const stripe = await stripePromise
-    const { error: stripeError } = await stripe.redirectToCheckout({ sessionId: session.sessionId })
+    const stripe = await stripePromise;
+    const { error: stripeError } = await stripe.redirectToCheckout({ sessionId: session.sessionId });
 
-    // Se o redirecionamento falhar, captura o erro
     if (stripeError) {
-      throw stripeError
+      throw stripeError;
     }
   } catch (e) {
-    console.error('Erro ao redirecionar para o checkout:', e)
-    error.value = e.message
+    console.error('Erro ao redirecionar para o checkout:', e);
+    error.value = e.message;
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 </script>
 
 <style scoped>
-.billing-container {
-  max-width: 600px;
-  margin: 40px auto;
-  padding: 2rem;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  text-align: center;
-}
-
-.plan {
-  border: 1px solid #e0e0e0;
-  padding: 1.5rem;
-  border-radius: 8px;
-  margin-top: 2rem;
-  background-color: white;
-}
-
-.price {
-  font-size: 2rem;
-  font-weight: bold;
-  color: #333;
-  margin: 0.5rem 0;
-}
-
-ul {
-  list-style: none;
-  padding: 0;
-  margin: 1.5rem 0;
-}
-
-li {
-  margin-bottom: 0.5rem;
-}
-
-button {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  padding: 1rem 2rem;
-  border-radius: 5px;
-  font-size: 1rem;
-  cursor: pointer;
-  transition: background-color 0.3s;
-}
-
-button:disabled {
-  background-color: #a0a0a0;
-  cursor: not-allowed;
-}
-
-button:hover:not(:disabled) {
-  background-color: #0056b3;
-}
-
-.error-message {
-  margin-top: 1.5rem;
-  color: #d93025;
-  background-color: #fbe9e7;
-  padding: 1rem;
-  border-radius: 8px;
-}
+/* Estilos podem ser adicionados aqui se necessário */
 </style>
