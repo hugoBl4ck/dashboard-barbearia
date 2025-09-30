@@ -17,11 +17,11 @@ import { useRouter } from 'vue-router'
 import { createInitialTenantData } from '@/firebase/tenantSetup'
 
 // --- ESTADO REATIVO GLOBAL ---
-const user = ref(null)
-const userData = ref(null)
-const barbeariaInfo = ref(null)
-const loading = ref(true)
-const error = ref(null) // NOVO: Para capturar erros
+export const user = ref(null)
+export const userData = ref(null)
+export const barbeariaInfo = ref(null)
+export const loading = ref(true)
+export const error = ref(null) // NOVO: Para capturar erros
 
 // --- FUNÇÕES DE APOIO (HELPER) ---
 

@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { getAuth } from "firebase/auth";
-import { getDoc, doc } from 'firebase/firestore';
-import { db } from '@/firebase';
+import { watch } from 'vue'
+import { user, loading, barbeariaInfo } from '@/composables/useAuth'
 
 import HomeView from '../views/HomeView.vue'
 import LoginView from '../views/LoginView.vue'
@@ -11,15 +10,21 @@ import ChatView from '../views/ChatView.vue'
 import BillingView from '../views/BillingView.vue';
 import { guestGuard } from './authGuard.js'
 
-const getCurrentUser = () => {
-  return new Promise((resolve, reject) => {
-    const removeListener = getAuth().onAuthStateChanged(
-      user => {
-        removeListener();
-        resolve(user);
-      },
-      reject
-    );
+/**
+ * Retorna uma Promise que resolve quando o estado inicial de autenticação do useAuth foi carregado.
+ * Isso previne condições de corrida onde o guarda de rota executa antes dos dados do usuário estarem prontos.
+ */
+const awaitAuthLoaded = () => {
+  if (!loading.value) {
+    return Promise.resolve();
+  }
+  return new Promise(resolve => {
+    const unwatch = watch(loading, (newLoading) => {
+      if (!newLoading) {
+        unwatch();
+        resolve();
+      }
+    });
   });
 };
 
@@ -82,35 +87,42 @@ const router = createRouter({
 
 router.beforeEach(async (to, from, next) => {
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
-  const user = await getCurrentUser();
 
-  if (requiresAuth && !user) {
+  // Espera o onAuthStateChanged e o carregamento dos dados da barbearia terminarem.
+  await awaitAuthLoaded();
+
+  const isAuthenticated = !!user.value;
+
+  if (requiresAuth && !isAuthenticated) {
     // Se a rota é protegida e não há usuário, vai para o login
-    next('/login');
-  } else if (requiresAuth && user) {
-    // Se a rota é protegida E há um usuário, verificamos a assinatura
-    const userDoc = await getDoc(doc(db, 'usuarios', user.uid));
-    if (userDoc.exists()) {
-      const barbeariaDoc = await getDoc(doc(db, 'barbearias', userDoc.data().barbeariaId));
-      const barbeariaData = barbeariaDoc.data();
-      
-      const isTrialExpired = barbeariaData.trialFim.toDate() < new Date();
-      const isActive = barbeariaData.statusAssinatura === 'active';
+    return next('/login');
+  }
+  
+  if (requiresAuth && isAuthenticated) {
+    // Se a rota é protegida e o usuário está logado, verificamos a assinatura.
+    // Usamos o 'barbeariaInfo' que já foi carregado pelo useAuth.
+    const info = barbeariaInfo.value;
+
+    if (info && info.trialFim) {
+      const isTrialExpired = info.trialFim.toDate() < new Date();
+      const isActive = info.statusAssinatura === 'active';
 
       if (!isActive && isTrialExpired && to.name !== 'billing') {
-        // Se não for assinante, o trial expirou, E não está indo para a pág. de billing...
-        alert("Seu período de teste expirou! Por favor, escolha um plano.");
-        next('/billing'); // ...força o redirecionamento para a página de cobrança.
-      } else {
-        // Se for assinante ou o trial ainda estiver ativo, permite o acesso.
-        next();
+        console.log('ASSINATURA EXPIRADA! Redirecionando para /billing...');
+        // alert("Seu período de teste expirou! Por favor, escolha um plano.");
+        return next('/billing');
       }
-    } else {
-       next('/login'); // Usuário do Auth existe, mas não no nosso DB? Vai para o login.
+    } else if (!info) {
+      console.error('CRITICAL: Usuário autenticado mas sem dados de barbearia no router guard.');
+      // Opcional: redirecionar para uma página de erro ou login
     }
+    
+    // Se a assinatura está ativa, o trial não expirou, ou está indo para a pág. de billing, permite o acesso.
+    return next();
+
   } else {
     // Se a rota não é protegida, permite o acesso.
-    next();
+    return next();
   }
 });
 
