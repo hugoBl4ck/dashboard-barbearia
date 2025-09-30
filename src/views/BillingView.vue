@@ -50,7 +50,9 @@
         </v-card>
 
         <div class="text-center mt-4">
-          <p class="text-caption text-medium-emphasis">Pagamentos seguros processados pela Stripe.</p>
+          <p class="text-caption text-medium-emphasis">
+            Pagamentos seguros processados pela Stripe.
+          </p>
         </div>
       </v-col>
     </v-row>
@@ -58,9 +60,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import { loadStripe } from '@stripe/stripe-js';
-import { useAuth } from '@/composables/useAuth';
+import { ref } from 'vue'
+import { loadStripe } from '@stripe/stripe-js'
+import { useAuth } from '@/composables/useAuth'
 
 // Lista de benefícios do plano
 const features = [
@@ -69,23 +71,23 @@ const features = [
   { text: 'Relatórios de Faturamento', icon: 'mdi-check-circle-outline' },
   { text: 'Sua Própria Landing Page', icon: 'mdi-check-circle-outline' },
   { text: 'Suporte Prioritário', icon: 'mdi-check-circle-outline' },
-];
+]
 
 // Carrega a instância do Stripe com a chave publicável
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
 
-const { barbeariaId } = useAuth();
-const loading = ref(false);
-const error = ref(null);
+const { barbeariaId } = useAuth()
+const loading = ref(false)
+const error = ref(null)
 
 const redirectToCheckout = async () => {
-  loading.value = true;
-  error.value = null;
+  loading.value = true
+  error.value = null
 
   if (!barbeariaId.value) {
-    error.value = 'ID da barbearia não encontrado. Faça login novamente para continuar.';
-    loading.value = false;
-    return;
+    error.value = 'ID da barbearia não encontrado. Faça login novamente para continuar.'
+    loading.value = false
+    return
   }
 
   try {
@@ -97,31 +99,31 @@ const redirectToCheckout = async () => {
       },
       body: JSON.stringify({
         // ⚠️ MUITO IMPORTANTE: Substitua pelo ID do Preço real do seu produto no Stripe.
-        priceId: 'price_1Ppgx3G1hJ4n2deFBg5dJ1eE',
+        priceId: 'prod_T6k1r05burQeMe',
         barbeariaId: barbeariaId.value,
       }),
-    });
+    })
 
-    const session = await response.json();
+    const session = await response.json()
 
     if (!response.ok) {
-      throw new Error(session.error?.message || 'Falha ao comunicar com o servidor de pagamento.');
+      throw new Error(session.error?.message || 'Falha ao comunicar com o servidor de pagamento.')
     }
 
     // 2. Usar a 'stripePromise' para redirecionar o cliente para o pagamento
-    const stripe = await stripePromise;
-    const { error: stripeError } = await stripe.redirectToCheckout({ sessionId: session.sessionId });
+    const stripe = await stripePromise
+    const { error: stripeError } = await stripe.redirectToCheckout({ sessionId: session.sessionId })
 
     if (stripeError) {
-      throw stripeError;
+      throw stripeError
     }
   } catch (e) {
-    console.error('Erro ao redirecionar para o checkout:', e);
-    error.value = e.message;
+    console.error('Erro ao redirecionar para o checkout:', e)
+    error.value = e.message
   } finally {
-    loading.value = false;
+    loading.value = false
   }
-};
+}
 </script>
 
 <style scoped>
