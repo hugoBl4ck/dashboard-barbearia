@@ -512,8 +512,6 @@ const handleSubmit = async () => {
   passwordError.value = ''
 
   try {
-    // Apenas inicia o processo de login/registro.
-    // Não redireciona daqui. O watcher fará isso.
     if (currentTab.value === 'login') {
       await loginWithEmail(email.value, password.value)
     } else {
@@ -527,8 +525,12 @@ const handleSubmit = async () => {
   } catch (error) {
     const errorMsg = handleFirebaseError(error.code)
 
-    // Mostrar erros específicos nos campos
-    if (error.code.includes('email')) {
+    // LÓGICA APRIMORADA
+    if (error.code === 'auth/email-already-in-use') {
+      // Se o e-mail já existe, avisa e muda para a aba de login
+      showAlertMessage('Este e-mail já está cadastrado. Tente fazer o login.', 'warning')
+      currentTab.value = 'login' 
+    } else if (error.code.includes('email')) {
       emailError.value = errorMsg
     } else if (error.code.includes('password')) {
       passwordError.value = errorMsg
