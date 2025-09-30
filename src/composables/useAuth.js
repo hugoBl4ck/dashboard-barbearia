@@ -11,7 +11,7 @@ import {
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
 } from 'firebase/auth'
-import { doc, getDoc, setDoc, collection } from 'firebase/firestore'
+import { doc, getDoc, setDoc, collection, Timestamp } from 'firebase/firestore'
 import { db } from '@/firebase'
 import { useRouter } from 'vue-router'
 import { createInitialTenantData } from '@/firebase/tenantSetup'
@@ -52,10 +52,30 @@ async function createUserProfile(firebaseUser, additionalData) {
 async function createNewBarbearia(nomeBarbearia = 'Nova Barbearia') {
   const newBarbeariaRef = doc(collection(db, 'barbearias'))
   const newBarbeariaId = newBarbeariaRef.id
+
+  // Calcula as datas do trial
+  const trialInicio = Timestamp.now();
+  const trialFimDate = new Date();
+  trialFimDate.setDate(trialFimDate.getDate() + 30); // Adiciona 30 dias
+  const trialFim = Timestamp.fromDate(trialFimDate);
+
   await setDoc(newBarbeariaRef, {
     nome: nomeBarbearia,
     criadoEm: new Date(),
-    configuracoes: { permitirAgendamentoOnline: true, intervaloAgendamento: 30 },
+    ownerId: getAuth().currentUser.uid, // Guarda quem é o dono
+
+    // --- NOVOS CAMPOS DE ASSINATURA ---
+    statusAssinatura: 'trialing', // 'trialing', 'active', 'canceled'
+    trialInicio: trialInicio,
+    trialFim: trialFim,
+    stripeCustomerId: null, // Será preenchido após o primeiro pagamento
+    stripeSubscriptionId: null, // ID da assinatura recorrente
+    // ------------------------------------
+
+    configuracoes: {
+      permitirAgendamentoOnline: true,
+      intervaloAgendamento: 30
+    }
   })
   return newBarbeariaId
 }
@@ -68,7 +88,31 @@ async function checkAndCreateUserOnFirstLogin(firebaseUser) {
 
   if (!barbeariaPrincipalSnap.exists()) {
     targetBarbeariaId = '01'
-    await setDoc(barbeariaPrincipalRef, { nome: 'Barbearia Principal', criadoEm: new Date() })
+
+    // Calcula as datas do trial
+    const trialInicio = Timestamp.now();
+    const trialFimDate = new Date();
+    trialFimDate.setDate(trialFimDate.getDate() + 30); // Adiciona 30 dias
+    const trialFim = Timestamp.fromDate(trialFimDate);
+
+    await setDoc(barbeariaPrincipalRef, { 
+      nome: 'Barbearia Principal', 
+      criadoEm: new Date(),
+      ownerId: getAuth().currentUser.uid, // Guarda quem é o dono
+
+      // --- NOVOS CAMPOS DE ASSINATURA ---
+      statusAssinatura: 'trialing', // 'trialing', 'active', 'canceled'
+      trialInicio: trialInicio,
+      trialFim: trialFim,
+      stripeCustomerId: null, // Será preenchido após o primeiro pagamento
+      stripeSubscriptionId: null, // ID da assinatura recorrente
+      // ------------------------------------
+
+      configuracoes: {
+        permitirAgendamentoOnline: true,
+        intervaloAgendamento: 30
+      }
+    })
   } else {
     targetBarbeariaId = await createNewBarbearia('Nova Barbearia (Google)')
   }
