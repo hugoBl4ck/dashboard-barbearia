@@ -561,6 +561,9 @@ onUnmounted(() => {
             <v-list-item @click="navigateTo('configuracoes')" prepend-icon="mdi-cog">
               <v-list-item-title>Configurações</v-list-item-title>
             </v-list-item>
+            <v-list-item to="/billing" prepend-icon="mdi-credit-card-outline">
+              <v-list-item-title>Assinatura</v-list-item-title>
+            </v-list-item>
             <v-divider></v-divider>
             <v-list-item @click="logout" prepend-icon="mdi-logout">
               <v-list-item-title>Sair</v-list-item-title>

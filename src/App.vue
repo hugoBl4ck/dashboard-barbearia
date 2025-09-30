@@ -1,5 +1,25 @@
 <template>
   <v-app>
+    <!-- Banner do Período de Teste -->
+    <v-app-bar
+      v-if="showTrialBanner"
+      color="warning"
+      density="compact"
+      class="text-center"
+    >
+      <v-container class="d-flex align-center justify-center py-0">
+        <span class="text-body-2">
+          <template v-if="trialDaysRemaining > 0">
+            Você tem <strong>{{ trialDaysRemaining }} {{ trialDaysRemaining === 1 ? 'dia restante' : 'dias restantes' }}</strong> de teste.
+          </template>
+          <template v-else>
+            Seu período de teste expirou!
+          </template>
+        </span>
+        <v-btn to="/billing" color="white" variant="outlined" size="small" class="ml-4">Fazer Upgrade</v-btn>
+      </v-container>
+    </v-app-bar>
+
     <v-main class="d-flex justify-center align-center">
       <!-- Se estiver carregando, mostra um spinner -->
       <div v-if="loading" class="text-center">
@@ -38,12 +58,35 @@ import { useDisplay } from 'vuetify';
 import { useRoute, useRouter } from 'vue-router';
 
 // Pega o estado de loading do nosso composable de autenticação
-const { loading } = useAuth();
+const { loading, barbeariaInfo, isReady } = useAuth();
 
 // Hooks para responsividade e roteamento
 const { mobile } = useDisplay();
 const route = useRoute();
 const router = useRouter();
+
+// Lógica para o banner de trial
+const trialDaysRemaining = computed(() => {
+  if (!isReady.value || barbeariaInfo.value?.statusAssinatura !== 'trialing') {
+    return null;
+  }
+  const trialEndDate = barbeariaInfo.value.trialFim?.toDate();
+  if (!trialEndDate) return null;
+
+  const today = new Date();
+  // Zera a hora do dia para comparar apenas as datas
+  today.setHours(0, 0, 0, 0);
+  
+  const diffTime = trialEndDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  return diffDays < 0 ? 0 : diffDays;
+});
+
+const showTrialBanner = computed(() => {
+  // Mostra o banner se o usuário estiver em trial e não estiver na página de login
+  return trialDaysRemaining.value !== null && route.name !== 'Login';
+});
 
 // Condições para exibir o botão de voltar
 const showBackButton = computed(() => {
