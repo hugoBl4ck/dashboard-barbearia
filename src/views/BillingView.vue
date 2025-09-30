@@ -99,7 +99,7 @@ const redirectToCheckout = async () => {
       },
       body: JSON.stringify({
         // ⚠️ MUITO IMPORTANTE: Substitua pelo ID do Preço real do seu produto no Stripe.
-        priceId: 'prod_T6k1r05burQeMe',
+        priceId: 'price_1SAWXe0EW5UDH4CWX7Krt61i',
         barbeariaId: barbeariaId.value,
       }),
     })
