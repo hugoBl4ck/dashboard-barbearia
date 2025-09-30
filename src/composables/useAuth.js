@@ -221,7 +221,7 @@ export function useAuth() {
       const newBarbeariaId = await createNewBarbearia(nomeBarbearia)
       console.log('[REGISTER] Nova barbearia criada:', newBarbeariaId)
 
-      await createUserProfile(firebaseUser, {
+      const newUserProfileData = await createUserProfile(firebaseUser, {
         barbeariaId: newBarbeariaId,
         nome: nomeProprietario,
       })
@@ -230,8 +230,12 @@ export function useAuth() {
       await createInitialTenantData(db, newBarbeariaId)
       console.log('[REGISTER] Dados iniciais populados para barbearia:', newBarbeariaId)
 
-      // CORREÇÃO: Não precisa recarregar aqui, o onAuthStateChanged fará isso
-      // O estado será atualizado automaticamente
+      // CORREÇÃO CRÍTICA: Atualiza o estado manualmente para evitar race condition
+      // O onAuthStateChanged pode demorar ou rodar antes do BD ser escrito.
+      console.log('[REGISTER] Atualizando estado local manualmente.')
+      user.value = firebaseUser
+      userData.value = newUserProfileData
+      barbeariaInfo.value = await loadBarbeariaInfo(newBarbeariaId)
     } catch (error) {
       console.error('Erro no cadastro:', error)
       throw error
