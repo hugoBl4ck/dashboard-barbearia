@@ -42,6 +42,11 @@ export default async function handler(request, response) {
 
   } catch (error) {
     console.error('Erro ao buscar informações do plano no Stripe:', error);
-    return response.status(500).json({ error: 'Falha ao buscar detalhes do plano.', details: error.message });
+    // DEBUG: Retorna o erro detalhado para o cliente para facilitar a depuração
+    return response.status(500).json({ 
+      error: 'Erro detalhado do servidor ao buscar plano.', 
+      details: error.message, 
+      stack: error.stack 
+    });
   }
 }
