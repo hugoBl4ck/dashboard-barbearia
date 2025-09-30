@@ -25,7 +25,7 @@ export default async function handler(request, response) {
       return response.status(404).json({ error: 'Barbearia não encontrada.'});
     }
     
-    const YOUR_DOMAIN = process.env.VERCEL_URL ? `https://{process.env.VERCEL_URL}` : 'http://localhost:5173';
+    const YOUR_DOMAIN = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:5173';
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
