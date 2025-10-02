@@ -64,21 +64,28 @@ import { useAuth } from '@/composables/useAuth';
 import { useDisplay } from 'vuetify';
 import { useRoute, useRouter } from 'vue-router';
 import NotificationBell from '@/components/NotificationBell.vue';
-import { getFirestore, collection, query, where, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
+import { getFirestore, collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 
-// Pega o estado de loading e informações do usuário do nosso composable de autenticação
+// Pega o estado de loading do nosso composable de autenticação
 const { loading, barbeariaInfo, isReady } = useAuth();
 
-// Função para disparar a notificação
+// Hooks para responsividade e roteamento
+const { mobile } = useDisplay();
+const route = useRoute();
+const router = useRouter();
+
+// --- LÓGICA DE NOTIFICAÇÃO EM TEMPO REAL ---
+
+// Função para disparar a notificação visual e sonora
 const triggerNotification = (notification) => {
-  // Toca o som
+  // Toca o som (a função vem do script em index.html)
   if (typeof generateAndPlaySound === 'function') {
     generateAndPlaySound();
   } else {
     console.warn('Função generateAndPlaySound não encontrada.');
   }
 
-  // Exibe a notificação
+  // Exibe a notificação do navegador
   if (!('Notification' in window)) {
     alert('Este navegador não suporta notificações de desktop');
     return;
@@ -87,7 +94,7 @@ const triggerNotification = (notification) => {
   const showNotification = () => {
     new Notification('Novo Agendamento!', {
       body: notification.message,
-      icon: '/favicon.ico' // Opcional: adicione um ícone
+      icon: '/favicon.ico'
     });
   };
 
@@ -108,10 +115,10 @@ watch(isReady, (ready) => {
     const db = getFirestore();
     const notificationsRef = collection(db, 'barbearias', barbeariaInfo.value.uid, 'notifications');
     
-    // Query para pegar apenas notificações novas e não lidas
+    // Query para pegar apenas notificações criadas a partir do momento que o app carrega
     const q = query(
       notificationsRef,
-      where('timestamp', '>', new Date().toISOString()), // Escuta apenas por novos docs a partir de agora
+      where('timestamp', '>', new Date().toISOString()),
       orderBy('timestamp', 'desc')
     );
 
@@ -128,10 +135,8 @@ watch(isReady, (ready) => {
   }
 }, { immediate: true });
 
-// Hooks para responsividade e roteamento
-const { mobile } = useDisplay();
-const route = useRoute();
-const router = useRouter();
+
+// --- LÓGICA EXISTENTE DO COMPONENTE ---
 
 // Lógica para o banner de trial
 const trialDaysRemaining = computed(() => {
@@ -142,7 +147,6 @@ const trialDaysRemaining = computed(() => {
   if (!trialEndDate) return null;
 
   const today = new Date();
-  // Zera a hora do dia para comparar apenas as datas
   today.setHours(0, 0, 0, 0);
   
   const diffTime = trialEndDate.getTime() - today.getTime();
@@ -152,7 +156,6 @@ const trialDaysRemaining = computed(() => {
 });
 
 const showTrialBanner = computed(() => {
-  // Mostra o banner se o usuário estiver em trial e não estiver na página de login
   return trialDaysRemaining.value !== null && route.name !== 'Login';
 });
 
