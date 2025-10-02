@@ -10,6 +10,9 @@ import PerfilView from './PerfilView.vue'
 import ConfiguracoesView from './ConfiguracoesView.vue'
 import AgendamentosView from './AgendamentosView.vue'
 import RelatoriosView from './RelatoriosView.vue'
+import NotificationBell from '@/components/NotificationBell.vue'
+import NotificationBell from '@/components/NotificationBell.vue'
+
 
 // --- HOOKS ---
 const auth = useAuth()
@@ -519,10 +522,7 @@ onUnmounted(() => {
           v-if="!$vuetify.display.mdAndUp"
         ></v-app-bar-nav-icon>
 
-        <v-app-bar-title class="d-flex align-center">
-          <v-icon class="mr-2">mdi-content-cut</v-icon>
-          {{ barbeariaInfo?.nome || 'BarberApp' }}
-        </v-app-bar-title>
+        <v-app-bar-title>Dashboard Barbearia</v-app-bar-title>
 
         <v-spacer></v-spacer>
 
@@ -532,12 +532,7 @@ onUnmounted(() => {
         </v-btn>
 
         <!-- NOTIFICAÇÕES -->
-        <v-btn icon class="mr-2">
-          <v-badge color="red" :content="notificacoesCount" v-if="notificacoesCount > 0">
-            <v-icon>mdi-bell</v-icon>
-          </v-badge>
-          <v-icon v-else>mdi-bell-outline</v-icon>
-        </v-btn>
+        <NotificationBell class="mr-2" />
 
         <!-- MENU USUÁRIO -->
         <v-menu>

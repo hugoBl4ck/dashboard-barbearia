@@ -1,12 +1,5 @@
 <template>
   <v-app>
-    <!-- Barra de Navegação Principal -->
-    <v-app-bar app color="primary" dark>
-      <v-toolbar-title>Dashboard Barbearia</v-toolbar-title>
-      <v-spacer></v-spacer>
-      <NotificationBell />
-    </v-app-bar>
-
     <!-- Banner do Período de Teste -->
     <v-app-bar
       v-if="showTrialBanner"
@@ -63,7 +56,7 @@ import { computed } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { useDisplay } from 'vuetify';
 import { useRoute, useRouter } from 'vue-router';
-import NotificationBell from '@/components/NotificationBell.vue';
+
 
 // Pega o estado de loading do nosso composable de autenticação
 const { loading, barbeariaInfo, isReady } = useAuth();
