@@ -182,13 +182,7 @@ onAuthStateChanged(auth, async (firebaseUser) => {
       } else {
         console.log('[USER DOC NÃO EXISTE] UID:', firebaseUser.uid)
 
-        // Adicionado para evitar erro de perfil não encontrado em novos cadastros
-        const isRecentCreation = (new Date().getTime() - new Date(firebaseUser.metadata.creationTime).getTime()) < 10000; // 10 segundos
-
-        if (isRecentCreation && firebaseUser.providerData[0]?.providerId !== 'google.com') {
-            console.warn('[AUTH] Documento do usuário não encontrado para um usuário recém-criado. O estado local deve ser preenchido pelo registerWithEmail. Ignorando o erro por enquanto.');
-            // Intencionalmente não faz nada, confia no estado local populado pelo registerWithEmail
-        } else if (firebaseUser.providerData[0]?.providerId === 'google.com') {
+        if (firebaseUser.providerData[0]?.providerId === 'google.com') {
           console.log('[CRIANDO PERFIL GOOGLE LOGIN]')
           const newUserDoc = await checkAndCreateUserOnFirstLogin(firebaseUser)
           console.log('[NOVO USER DOC CRIADO]', newUserDoc)
