@@ -1,5 +1,12 @@
 <template>
   <v-app>
+    <!-- Barra de Navegação Principal -->
+    <v-app-bar app color="primary" dark>
+      <v-toolbar-title>Dashboard Barbearia</v-toolbar-title>
+      <v-spacer></v-spacer>
+      <NotificationBell />
+    </v-app-bar>
+
     <!-- Banner do Período de Teste -->
     <v-app-bar
       v-if="showTrialBanner"
@@ -52,13 +59,74 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { useDisplay } from 'vuetify';
 import { useRoute, useRouter } from 'vue-router';
+import NotificationBell from '@/components/NotificationBell.vue';
+import { getFirestore, collection, query, where, onSnapshot, orderBy, Timestamp } from 'firebase/firestore';
 
-// Pega o estado de loading do nosso composable de autenticação
+// Pega o estado de loading e informações do usuário do nosso composable de autenticação
 const { loading, barbeariaInfo, isReady } = useAuth();
+
+// Função para disparar a notificação
+const triggerNotification = (notification) => {
+  // Toca o som
+  if (typeof generateAndPlaySound === 'function') {
+    generateAndPlaySound();
+  } else {
+    console.warn('Função generateAndPlaySound não encontrada.');
+  }
+
+  // Exibe a notificação
+  if (!('Notification' in window)) {
+    alert('Este navegador não suporta notificações de desktop');
+    return;
+  }
+
+  const showNotification = () => {
+    new Notification('Novo Agendamento!', {
+      body: notification.message,
+      icon: '/favicon.ico' // Opcional: adicione um ícone
+    });
+  };
+
+  if (Notification.permission === 'granted') {
+    showNotification();
+  } else if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then((permission) => {
+      if (permission === 'granted') {
+        showNotification();
+      }
+    });
+  }
+};
+
+// Observa quando a autenticação está pronta e o ID da barbearia está disponível
+watch(isReady, (ready) => {
+  if (ready && barbeariaInfo.value?.uid) {
+    const db = getFirestore();
+    const notificationsRef = collection(db, 'barbearias', barbeariaInfo.value.uid, 'notifications');
+    
+    // Query para pegar apenas notificações novas e não lidas
+    const q = query(
+      notificationsRef,
+      where('timestamp', '>', new Date().toISOString()), // Escuta apenas por novos docs a partir de agora
+      orderBy('timestamp', 'desc')
+    );
+
+    onSnapshot(q, (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          console.log('Nova notificação recebida: ', change.doc.data());
+          triggerNotification(change.doc.data());
+        }
+      });
+    }, (error) => {
+      console.error('Erro ao escutar por notificações:', error);
+    });
+  }
+}, { immediate: true });
 
 // Hooks para responsividade e roteamento
 const { mobile } = useDisplay();

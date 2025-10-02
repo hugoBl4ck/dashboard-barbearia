@@ -422,6 +422,21 @@ async function saveAppointment(barbeariaId, personInfo, requestedDate, servico) 
     duracaoMinutos: servico.duracaoMinutos || 30,
   }
   await schedulesRef.add(newAppointment)
+
+  // Criar notificação
+  const notificationsRef = db
+    .collection(CONFIG.collections.barbearias)
+    .doc(barbeariaId)
+    .collection('notifications')
+
+  const formattedDate = dayjs(requestedDate).tz(CONFIG.timezone).format('DD/MM [às] HH:mm');
+  const message = `${personInfo.name} agendou ${servico.nome} para ${formattedDate}`;
+
+  await notificationsRef.add({
+    message,
+    read: false,
+    timestamp: new Date().toISOString(),
+  });
 }
 
 module.exports = app
