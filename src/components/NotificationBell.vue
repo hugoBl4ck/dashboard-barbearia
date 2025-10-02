@@ -9,7 +9,11 @@
     </template>
     <v-list>
       <v-list-item v-for="(notification, index) in notifications" :key="index" @click="markAsRead(notification)">
-        <v-list-item-title>{{ notification.message }}</v-list-item-title>
+        <v-list-item-title>
+          <v-icon v-if="notification.type === 'cancelamento'" color="red" class="mr-2">mdi-close-circle-outline</v-icon>
+          <v-icon v-else color="blue" class="mr-2">mdi-calendar-plus</v-icon>
+          {{ notification.message }}
+        </v-list-item-title>
       </v-list-item>
       <v-list-item v-if="notifications.length === 0">
         <v-list-item-title>Nenhuma notificação nova</v-list-item-title>
@@ -54,7 +58,7 @@ watch(barbeariaId, (newId) => {
       if (isNewAddition && notifications.value.length < newNotifications.length) {
         const latestNotification = newNotifications[0]; // Já que está ordenado por timestamp desc
         playNotificationSound();
-        showBrowserNotification(latestNotification.message);
+        showBrowserNotification(latestNotification);
       }
 
       notifications.value = newNotifications;
@@ -88,17 +92,19 @@ function playNotificationSound() {
   oscillator.stop(audioContext.currentTime + 0.5);
 }
 
-function showBrowserNotification(message) {
+function showBrowserNotification(notification) {
   if (Notification.permission === 'granted') {
-    new Notification('Novo Agendamento!', {
-      body: message,
+    const title = notification.type === 'cancelamento' ? 'Agendamento Cancelado!' : 'Novo Agendamento!';
+    new Notification(title, {
+      body: notification.message,
       icon: '/favicon.ico'
     });
   } else if (Notification.permission !== 'denied') {
     Notification.requestPermission().then(permission => {
       if (permission === 'granted') {
-        new Notification('Novo Agendamento!', {
-          body: message,
+        const title = notification.type === 'cancelamento' ? 'Agendamento Cancelado!' : 'Novo Agendamento!';
+        new Notification(title, {
+          body: notification.message,
           icon: '/favicon.ico'
         });
       }

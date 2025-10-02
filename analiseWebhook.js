@@ -365,8 +365,25 @@ async function handleCancellation(barbeariaId, personInfo) {
 
   let count = 0
   for (const doc of snapshot.docs) {
-    await doc.ref.update({ Status: 'Cancelado' })
-    count++
+    const appointmentData = doc.data();
+    await doc.ref.update({ Status: 'Cancelado' });
+    count++;
+
+    // Criar notificação de cancelamento
+    const notificationsRef = db
+      .collection(CONFIG.collections.barbearias)
+      .doc(barbeariaId)
+      .collection('notifications');
+    
+    const formattedDate = dayjs(appointmentData.DataHoraISO).tz(CONFIG.timezone).format('DD/MM [às] HH:mm');
+    const message = `CANCELAMENTO: O agendamento de ${appointmentData.NomeCliente} para ${formattedDate} foi cancelado.`;
+
+    await notificationsRef.add({
+      message,
+      read: false,
+      timestamp: new Date().toISOString(),
+      type: 'cancelamento' 
+    });
   }
   return {
     success: true,

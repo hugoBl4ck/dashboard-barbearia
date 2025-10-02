@@ -142,13 +142,19 @@ const carregarDadosAgenda = async () => {
             dataSelecionada.value.toDateString() === new Date().toDateString()
 
           if (agendamento) {
+            const tipo = estaNoPassado
+              ? 'passado'
+              : agendamento.Status === 'Cancelado'
+              ? 'cancelado'
+              : 'agendamento'
+
             slots.push({
               timestamp,
               horarioFormatado: new Date(agendamento.DataHoraISO).toLocaleTimeString('pt-BR', {
                 hour: '2-digit',
                 minute: '2-digit',
               }),
-              tipo: estaNoPassado ? 'passado' : 'agendamento',
+              tipo: tipo,
               titulo: agendamento.NomeCliente,
               detalhes: agendamento.servicoNome,
               preco: agendamento.preco,
@@ -313,15 +319,51 @@ const formatCurrency = (value) =>
   (value ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
 // Funções de estilo (placeholders)
-const getSlotVariant = (slot) => (slot.tipo === 'livre' ? 'tonal' : 'elevated')
-const getSlotColor = (slot) => (slot.tipo === 'agendamento' ? 'primary' : undefined)
-const getTimeTextColor = (slot) => (slot.tipo === 'agendamento' ? 'text-white' : '')
-const getDetailsTextColor = (slot) => (slot.tipo === 'agendamento' ? 'text-white' : '')
-const getPriceTextColor = (slot) => (slot.tipo === 'agendamento' ? 'text-white' : 'text-green')
-const getChipColor = (status) => (status === 'Agendado' ? 'blue-lighten-5' : 'green-lighten-5')
-const getChipIcon = (status) => (status === 'Livre' ? 'mdi-check' : 'mdi-account')
-const getChipIconColor = (status) => (status === 'Livre' ? 'green' : 'blue')
-const getChipTextColor = (status) => (status === 'Livre' ? 'text-green' : 'text-blue')
+const getSlotVariant = (slot) => {
+  if (slot.tipo === 'livre') return 'tonal'
+  if (slot.tipo === 'cancelado') return 'outlined'
+  return 'elevated'
+}
+const getSlotColor = (slot) => {
+  if (slot.tipo === 'agendamento') return 'primary'
+  if (slot.tipo === 'cancelado') return 'grey-lighten-1'
+  return undefined
+}
+const getTimeTextColor = (slot) => {
+  if (slot.tipo === 'agendamento') return 'text-white'
+  if (slot.tipo === 'cancelado') return 'text-grey-darken-1'
+  return ''
+}
+const getDetailsTextColor = (slot) => {
+  if (slot.tipo === 'agendamento') return 'text-white'
+  if (slot.tipo === 'cancelado') return 'text-grey-darken-1'
+  return ''
+}
+const getPriceTextColor = (slot) => {
+  if (slot.tipo === 'agendamento') return 'text-white'
+  if (slot.tipo === 'cancelado') return 'text-grey-darken-1'
+  return 'text-green'
+}
+const getChipColor = (status) => {
+  if (status === 'Agendado') return 'blue-lighten-5'
+  if (status === 'Cancelado') return 'red-lighten-5'
+  return 'green-lighten-5'
+}
+const getChipIcon = (status) => {
+  if (status === 'Livre') return 'mdi-check'
+  if (status === 'Cancelado') return 'mdi-close-circle-outline'
+  return 'mdi-account'
+}
+const getChipIconColor = (status) => {
+  if (status === 'Livre') return 'green'
+  if (status === 'Cancelado') return 'red'
+  return 'blue'
+}
+const getChipTextColor = (status) => {
+  if (status === 'Livre') return 'text-green'
+  if (status === 'Cancelado') return 'text-red'
+  return 'text-blue'
+}
 
 onMounted(() => {
   console.log('[HOME MOUNTED] Auth state:', {
@@ -477,7 +519,7 @@ onUnmounted(() => {
                     :variant="getSlotVariant(slot)"
                     :color="getSlotColor(slot)"
                     @click="handleItemClick(slot)"
-                    :disabled="slot.tipo === 'passado'"
+                    :disabled="slot.tipo === 'passado' || slot.tipo === 'cancelado'"
                 >
                     <v-card-text class="pa-3 text-center">
                     <div class="font-weight-bold mb-1" :class="getTimeTextColor(slot)">
