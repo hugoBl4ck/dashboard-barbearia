@@ -1,11 +1,12 @@
 <template>
-  <v-app>
+  <v-app :theme="isDarkTheme ? 'dark' : 'light'">
     <!-- Banner do Período de Teste -->
     <v-app-bar
       v-if="showTrialBanner"
       color="warning"
       density="compact"
       class="text-center"
+      app
     >
       <v-container class="d-flex align-center justify-center py-0">
         <span class="text-body-2">
@@ -20,8 +21,141 @@
       </v-container>
     </v-app-bar>
 
+    <!-- MENU LATERAL (DRAWER) -->
+    <v-navigation-drawer v-if="showLayout" v-model="drawer" :rail="rail" @click="rail = false" app>
+      <v-list-item
+        :prepend-avatar="user?.photoURL"
+        :title="user?.displayName || user?.email"
+        :subtitle="barbeariaInfo?.nome"
+        nav
+      >
+        <template v-slot:append>
+          <v-btn variant="text" icon="mdi-chevron-left" @click.stop="rail = !rail"></v-btn>
+        </template>
+      </v-list-item>
+
+      <v-divider></v-divider>
+
+      <v-list density="compact" nav>
+        <v-list-item
+          prepend-icon="mdi-view-dashboard"
+          title="Dashboard"
+          value="dashboard"
+          @click="navigateTo('home')"
+        ></v-list-item>
+
+        <v-list-item
+          prepend-icon="mdi-calendar-check"
+          title="Agendamentos"
+          value="agendamentos"
+          @click="navigateTo('agendamentos')"
+        ></v-list-item>
+
+        <v-list-item
+          prepend-icon="mdi-account-group"
+          title="Clientes"
+          value="clientes"
+          @click="navigateTo('clientes')"
+        ></v-list-item>
+
+        <v-list-item
+          prepend-icon="mdi-scissors-cutting"
+          title="Serviços"
+          value="servicos"
+          @click="navigateTo('servicos')"
+        ></v-list-item>
+
+        <v-list-item
+          prepend-icon="mdi-clock-outline"
+          title="Horários"
+          value="horarios"
+          @click="navigateTo('horarios')"
+        ></v-list-item>
+
+        <v-list-item
+          prepend-icon="mdi-chart-line"
+          title="Relatórios"
+          value="relatorios"
+          @click="navigateTo('relatorios')"
+        ></v-list-item>
+
+        <v-divider class="my-2"></v-divider>
+
+        <v-list-item
+          prepend-icon="mdi-web"
+          title="Minha Landing Page"
+          value="landing"
+          @click="abrirLandingPage"
+        ></v-list-item>
+
+        <v-list-item
+          prepend-icon="mdi-cog"
+          title="Configurações"
+          value="configuracoes"
+          @click="navigateTo('configuracoes')"
+        ></v-list-item>
+      </v-list>
+
+      <template v-slot:append>
+        <div class="pa-2">
+          <v-btn color="red" variant="outlined" block @click="logout" prepend-icon="mdi-logout">
+            Sair
+          </v-btn>
+        </div>
+      </template>
+    </v-navigation-drawer>
+
+    <!-- APP BAR -->
+    <v-app-bar v-if="showLayout" color="primary" elevation="2" app>
+      <v-app-bar-nav-icon
+        @click="drawer = !drawer"
+        v-if="!mdAndUp"
+      ></v-app-bar-nav-icon>
+
+      <v-toolbar-title>BarberApp</v-toolbar-title>
+
+      <v-spacer></v-spacer>
+
+      <v-btn icon @click="toggleTheme" class="mr-2">
+        <v-icon>{{ isDarkTheme ? 'mdi-weather-night' : 'mdi-weather-sunny' }}</v-icon>
+      </v-btn>
+
+      <NotificationBell class="mr-2" />
+
+      <v-menu>
+        <template v-slot:activator="{ props }">
+          <v-btn icon v-bind="props">
+            <v-avatar size="36">
+              <v-img v-if="user?.photoURL" :src="user.photoURL"></v-img>
+              <v-icon v-else>mdi-account</v-icon>
+            </v-avatar>
+          </v-btn>
+        </template>
+
+        <v-list>
+          <v-list-item>
+            <v-list-item-title>{{ user?.displayName || user?.email }}</v-list-item-title>
+            <v-list-item-subtitle>{{ barbeariaInfo?.nome }}</v-list-item-subtitle>
+          </v-list-item>
+          <v-divider></v-divider>
+          <v-list-item @click="navigateTo('perfil')" prepend-icon="mdi-account-edit">
+            <v-list-item-title>Meu Perfil</v-list-item-title>
+          </v-list-item>
+          <v-list-item @click="navigateTo('configuracoes')" prepend-icon="mdi-cog">
+            <v-list-item-title>Configurações</v-list-item-title>
+          </v-list-item>
+          <v-list-item to="/billing" prepend-icon="mdi-credit-card-outline">
+            <v-list-item-title>Assinatura</v-list-item-title>
+          </v-list-item>
+          <v-divider></v-divider>
+          <v-list-item @click="logout" prepend-icon="mdi-logout">
+            <v-list-item-title>Sair</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
+    </v-app-bar>
+
     <v-main class="d-flex justify-center align-center">
-      <!-- Se estiver carregando, mostra um spinner -->
       <div v-if="loading" class="text-center">
         <v-progress-circular
           indeterminate
@@ -30,12 +164,9 @@
         ></v-progress-circular>
         <p class="mt-4">Carregando...</p>
       </div>
-      
-      <!-- Se não estiver carregando, mostra o conteúdo da rota -->
       <router-view v-else />
     </v-main>
 
-    <!-- Botão Voltar Flutuante para Mobile -->
     <v-btn
       v-if="showBackButton"
       icon
@@ -52,21 +183,24 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useAuth } from '@/composables/useAuth';
-import { useDisplay } from 'vuetify';
+import { useTheme, useDisplay } from 'vuetify';
 import { useRoute, useRouter } from 'vue-router';
+import NotificationBell from '@/components/NotificationBell.vue';
 
-
-// Pega o estado de loading do nosso composable de autenticação
-const { loading, barbeariaInfo, isReady } = useAuth();
-
-// Hooks para responsividade e roteamento
-const { mobile } = useDisplay();
+const { loading, barbeariaInfo, isReady, user, logout } = useAuth();
+const { mobile, mdAndUp } = useDisplay();
 const route = useRoute();
 const router = useRouter();
+const theme = useTheme();
 
-// Lógica para o banner de trial
+const drawer = ref(mdAndUp.value);
+const rail = ref(false);
+const isDarkTheme = ref(false);
+
+const showLayout = computed(() => route.name !== 'Login');
+
 const trialDaysRemaining = computed(() => {
   if (!isReady.value || barbeariaInfo.value?.statusAssinatura !== 'trialing') {
     return null;
@@ -75,7 +209,6 @@ const trialDaysRemaining = computed(() => {
   if (!trialEndDate) return null;
 
   const today = new Date();
-  // Zera a hora do dia para comparar apenas as datas
   today.setHours(0, 0, 0, 0);
   
   const diffTime = trialEndDate.getTime() - today.getTime();
@@ -85,11 +218,9 @@ const trialDaysRemaining = computed(() => {
 });
 
 const showTrialBanner = computed(() => {
-  // Mostra o banner se o usuário estiver em trial e não estiver na página de login
   return trialDaysRemaining.value !== null && route.name !== 'Login';
 });
 
-// Condições para exibir o botão de voltar
 const showBackButton = computed(() => {
   const nonBackButtonRoutes = ['home', 'Login', 'ClientLandingPage'];
   return mobile.value && !nonBackButtonRoutes.includes(route.name);
@@ -98,6 +229,34 @@ const showBackButton = computed(() => {
 const goBack = () => {
   router.back();
 };
+
+const toggleTheme = () => {
+  isDarkTheme.value = !isDarkTheme.value;
+  const newTheme = isDarkTheme.value ? 'dark' : 'light';
+  theme.global.name.value = newTheme;
+  localStorage.setItem('barberapp-theme', newTheme);
+};
+
+const navigateTo = (routeName) => {
+  router.push({ name: routeName });
+};
+
+const abrirLandingPage = () => {
+  const slug = barbeariaInfo.value?.slug;
+  if (slug) {
+    window.open(`/b/${slug}`, '_blank');
+  } else {
+    alert('Apelido da barbearia (slug) não encontrado.');
+  }
+};
+
+onMounted(() => {
+  const savedTheme = localStorage.getItem('barberapp-theme');
+  if (savedTheme) {
+    isDarkTheme.value = savedTheme === 'dark';
+    theme.global.name.value = savedTheme;
+  }
+});
 </script>
 
 <style>

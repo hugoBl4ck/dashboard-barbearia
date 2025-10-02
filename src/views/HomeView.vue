@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import { useTenant } from '@/composables/useTenant'
-import { useTheme, useDisplay } from 'vuetify'
+import { useRoute } from 'vue-router'
 import HorariosView from './HorariosView.vue'
 import ServicosView from './ServicosView.vue'
 import ClientesView from './ClientesView.vue'
@@ -10,25 +10,18 @@ import PerfilView from './PerfilView.vue'
 import ConfiguracoesView from './ConfiguracoesView.vue'
 import AgendamentosView from './AgendamentosView.vue'
 import RelatoriosView from './RelatoriosView.vue'
-import NotificationBell from '@/components/NotificationBell.vue'
-import NotificationBell from '@/components/NotificationBell.vue'
-
 
 // --- HOOKS ---
 const auth = useAuth()
 const tenant = useTenant()
-const theme = useTheme() // Hook do Vuetify para gerir o tema
-const { mdAndUp } = useDisplay()
+const route = useRoute()
 
 // --- REFS COMPUTADOS PARA FACILIDADE ---
-const user = computed(() => auth.user)
 const barbeariaInfo = computed(() => auth.barbeariaInfo)
+const currentRoute = computed(() => route.name)
 
 // --- ESTADO GLOBAL ---
 const loadingData = ref(false)
-const drawer = ref(mdAndUp.value)
-const rail = ref(false)
-const currentRoute = ref('dashboard')
 
 // --- ESTADO DA AGENDA ---
 const dataSelecionada = ref(new Date())
@@ -55,10 +48,6 @@ const deletingLoading = ref(false)
 const showNotification = ref(false)
 const notificationMessage = ref('')
 const notificationType = ref('success')
-const notificacoesCount = ref(3)
-
-// --- TEMA ---
-const isDarkTheme = ref(false)
 
 // --- PROPRIEDADES COMPUTADAS ---
 const dataFormatada = computed(() => {
@@ -73,15 +62,6 @@ const dataFormatada = computed(() => {
 })
 
 // --- FUNÇÕES ---
-
-// NOVA FUNÇÃO PARA ALTERNAR O TEMA
-const toggleTheme = () => {
-  isDarkTheme.value = !isDarkTheme.value
-  const newTheme = isDarkTheme.value ? 'dark' : 'light'
-  theme.global.name.value = newTheme
-  localStorage.setItem('barberapp-theme', newTheme) // Salva a preferência
-}
-
 const carregarDadosIniciais = async () => {
   if (!auth.isReady.value) return
 
@@ -235,19 +215,6 @@ watch(servicoSelecionado, (novoServico) => {
   }
 })
 
-const navigateTo = (route) => (currentRoute.value = route)
-
-const abrirLandingPage = () => {
-  const slug = auth.barbeariaInfo.value?.slug;
-  if (slug) {
-    window.open(`/b/${slug}`, '_blank');
-  } else {
-    alert('Apelido da barbearia (slug) não encontrado. Não é possível abrir a landing page.');
-  }
-}
-
-const logout = async () => await auth.logout()
-
 const mudarDia = (dias) => {
   const novaData = new Date(dataSelecionada.value)
   novaData.setDate(novaData.getDate() + dias)
@@ -355,9 +322,6 @@ const excluirAgendamento = async () => {
 const formatCurrency = (value) =>
   (value ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
-const getCurrentRouteTitle = () =>
-  currentRoute.value.charAt(0).toUpperCase() + currentRoute.value.slice(1)
-
 // Funções de estilo (placeholders)
 const getSlotVariant = (slot) => (slot.tipo === 'livre' ? 'tonal' : 'elevated')
 const getSlotColor = (slot) => (slot.tipo === 'agendamento' ? 'primary' : undefined)
@@ -376,12 +340,6 @@ onMounted(() => {
     isReady: auth.isReady.value,
     error: auth.error.value,
   })
-  // Carregar tema do localStorage
-  const savedTheme = localStorage.getItem('barberapp-theme')
-  if (savedTheme) {
-    isDarkTheme.value = savedTheme === 'dark'
-    theme.global.name.value = savedTheme
-  }
 })
 
 onUnmounted(() => {
@@ -393,7 +351,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <v-app>
+  <div>
     <!-- TELA DE CARREGAMENTO GLOBAL -->
     <div
       v-if="auth.loading.value"
@@ -424,153 +382,8 @@ onUnmounted(() => {
 
     <!-- DASHBOARD PRINCIPAL -->
     <template v-else-if="auth.isReady.value">
-      <!-- MENU LATERAL (DRAWER) -->
-      <v-navigation-drawer v-model="drawer" :rail="rail" @click="rail = false">
-        <v-list-item
-          :prepend-avatar="user?.photoURL"
-          :title="user?.displayName || user?.email"
-          :subtitle="barbeariaInfo?.nome"
-          nav
-        >
-          <template v-slot:append>
-            <v-btn variant="text" icon="mdi-chevron-left" @click.stop="rail = !rail"></v-btn>
-          </template>
-        </v-list-item>
-
-        <v-divider></v-divider>
-
-        <v-list density="compact" nav>
-          <v-list-item
-            prepend-icon="mdi-view-dashboard"
-            title="Dashboard"
-            value="dashboard"
-            :active="currentRoute === 'dashboard'"
-            @click="navigateTo('dashboard')"
-          ></v-list-item>
-
-          <v-list-item
-            prepend-icon="mdi-calendar-check"
-            title="Agendamentos"
-            value="agendamentos"
-            :active="currentRoute === 'agendamentos'"
-            @click="navigateTo('agendamentos')"
-          ></v-list-item>
-
-          <v-list-item
-            prepend-icon="mdi-account-group"
-            title="Clientes"
-            value="clientes"
-            :active="currentRoute === 'clientes'"
-            @click="navigateTo('clientes')"
-          ></v-list-item>
-
-          <v-list-item
-            prepend-icon="mdi-scissors-cutting"
-            title="Serviços"
-            value="servicos"
-            :active="currentRoute === 'servicos'"
-            @click="navigateTo('servicos')"
-          ></v-list-item>
-
-          <v-list-item
-            prepend-icon="mdi-clock-outline"
-            title="Horários"
-            value="horarios"
-            :active="currentRoute === 'horarios'"
-            @click="navigateTo('horarios')"
-          ></v-list-item>
-
-          <v-list-item
-            prepend-icon="mdi-chart-line"
-            title="Relatórios"
-            value="relatorios"
-            :active="currentRoute === 'relatorios'"
-            @click="navigateTo('relatorios')"
-          ></v-list-item>
-
-          <v-divider class="my-2"></v-divider>
-
-          <v-list-item
-            prepend-icon="mdi-web"
-            title="Minha Landing Page"
-            value="landing"
-            @click="abrirLandingPage"
-          ></v-list-item>
-
-          <v-list-item
-            prepend-icon="mdi-cog"
-            title="Configurações"
-            value="configuracoes"
-            :active="currentRoute === 'configuracoes'"
-            @click="navigateTo('configuracoes')"
-          ></v-list-item>
-        </v-list>
-
-        <template v-slot:append>
-          <div class="pa-2">
-            <v-btn color="red" variant="outlined" block @click="logout" prepend-icon="mdi-logout">
-              Sair
-            </v-btn>
-          </div>
-        </template>
-      </v-navigation-drawer>
-
-      <!-- APP BAR -->
-      <v-app-bar color="primary" elevation="2">
-        <v-app-bar-nav-icon
-          @click="drawer = !drawer"
-          v-if="!$vuetify.display.mdAndUp"
-        ></v-app-bar-nav-icon>
-
-        <v-app-bar-title>Dashboard Barbearia</v-app-bar-title>
-
-        <v-spacer></v-spacer>
-
-        <!-- BOTÃO DE TEMA ADICIONADO AQUI -->
-        <v-btn icon @click="toggleTheme" class="mr-2">
-          <v-icon>{{ isDarkTheme ? 'mdi-weather-night' : 'mdi-weather-sunny' }}</v-icon>
-        </v-btn>
-
-        <!-- NOTIFICAÇÕES -->
-        <NotificationBell class="mr-2" />
-
-        <!-- MENU USUÁRIO -->
-        <v-menu>
-          <template v-slot:activator="{ props }">
-            <v-btn icon v-bind="props">
-              <v-avatar size="36">
-                <v-img v-if="user?.photoURL" :src="user.photoURL"></v-img>
-                <v-icon v-else>mdi-account</v-icon>
-              </v-avatar>
-            </v-btn>
-          </template>
-
-          <v-list>
-            <v-list-item>
-              <v-list-item-title>{{ user?.displayName || user?.email }}</v-list-item-title>
-              <v-list-item-subtitle>{{ barbeariaInfo?.nome }}</v-list-item-subtitle>
-            </v-list-item>
-            <v-divider></v-divider>
-            <v-list-item @click="navigateTo('perfil')" prepend-icon="mdi-account-edit">
-              <v-list-item-title>Meu Perfil</v-list-item-title>
-            </v-list-item>
-            <v-list-item @click="navigateTo('configuracoes')" prepend-icon="mdi-cog">
-              <v-list-item-title>Configurações</v-list-item-title>
-            </v-list-item>
-            <v-list-item to="/billing" prepend-icon="mdi-credit-card-outline">
-              <v-list-item-title>Assinatura</v-list-item-title>
-            </v-list-item>
-            <v-divider></v-divider>
-            <v-list-item @click="logout" prepend-icon="mdi-logout">
-              <v-list-item-title>Sair</v-list-item-title>
-            </v-list-item>
-          </v-list>
-        </v-menu>
-      </v-app-bar>
-
-      <v-main>
         <!-- CONTEÚDO BASEADO NA ROTA ATUAL -->
-        <div v-if="currentRoute === 'dashboard'">
+        <div v-if="currentRoute === 'home' || currentRoute === 'dashboard'">
           <v-container fluid class="pa-6 page-container">
             <!-- NAVEGAÇÃO DE DATA -->
             <v-card flat class="d-flex align-center pa-2 mb-6 date-nav-card" color="surface">
@@ -741,9 +554,9 @@ onUnmounted(() => {
               <v-icon size="64" color="grey">mdi-construction</v-icon>
               <h2 class="text-h4 mt-4 mb-2">Em Desenvolvimento</h2>
               <p class="text-body-1 text-medium-emphasis mb-4">
-                A seção "{{ getCurrentRouteTitle() }}" está sendo desenvolvida.
+                A seção "{{ currentRoute }}" está sendo desenvolvida.
               </p>
-              <v-btn color="primary" @click="navigateTo('dashboard')"> Voltar ao Dashboard </v-btn>
+              <v-btn color="primary" to="/"> Voltar ao Dashboard </v-btn>
             </v-card>
           </v-container>
         </div>
@@ -831,7 +644,6 @@ onUnmounted(() => {
           <v-icon class="mr-2">mdi-check-circle</v-icon>
           {{ notificationMessage }}
         </v-snackbar>
-      </v-main>
     </template>
 
     <!-- FALLBACK: Se não estiver carregando, nem com erro, nem pronto (estado inesperado) -->
@@ -850,7 +662,7 @@ onUnmounted(() => {
         <v-btn variant="outlined" @click="logout"> Fazer Logout </v-btn>
       </v-card>
     </div>
-  </v-app>
+  </div>
 </template>
 <style>
 /* Estilos globais para a aplicação */
