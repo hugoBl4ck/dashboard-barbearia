@@ -19,29 +19,40 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc } from 'firebase/firestore';
+import { ref, watch } from 'vue';
+import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc, orderBy } from 'firebase/firestore';
 import { useAuth } from '@/composables/useAuth';
 
 const { barbeariaId } = useAuth();
 const notifications = ref([]);
 const unreadCount = ref(0);
+let unsubscribe = null;
 
 const db = getFirestore();
 
-onMounted(() => {
-  if (barbeariaId.value) {
-    const notificationsRef = collection(db, 'barbearias', barbeariaId.value, 'notifications');
-    const q = query(notificationsRef, where('read', '==', false));
+watch(barbeariaId, (newId) => {
+  if (unsubscribe) {
+    unsubscribe(); // Cancela o listener anterior para evitar duplicatas
+  }
 
-    onSnapshot(q, (snapshot) => {
+  if (newId) {
+    const notificationsRef = collection(db, 'barbearias', newId, 'notifications');
+    const q = query(
+      notificationsRef, 
+      where('read', '==', false),
+      orderBy('timestamp', 'desc')
+    );
+
+    unsubscribe = onSnapshot(q, (snapshot) => {
       const newNotifications = [];
       snapshot.forEach((doc) => {
         newNotifications.push({ id: doc.id, ...doc.data() });
       });
 
-      if (newNotifications.length > notifications.value.length) {
-        const latestNotification = newNotifications[newNotifications.length - 1];
+      // Dispara o som/notificação apenas se um novo item for realmente adicionado
+      const isNewAddition = snapshot.docChanges().some(change => change.type === 'added');
+      if (isNewAddition && notifications.value.length < newNotifications.length) {
+        const latestNotification = newNotifications[0]; // Já que está ordenado por timestamp desc
         playNotificationSound();
         showBrowserNotification(latestNotification.message);
       }
@@ -49,8 +60,12 @@ onMounted(() => {
       notifications.value = newNotifications;
       unreadCount.value = newNotifications.length;
     });
+  } else {
+    // Limpa as notificações se o usuário fizer logout
+    notifications.value = [];
+    unreadCount.value = 0;
   }
-});
+}, { immediate: true });
 
 function playNotificationSound() {
   const audioContext = new (window.AudioContext || window.webkitAudioContext)();

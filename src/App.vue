@@ -59,12 +59,11 @@
 </template>
 
 <script setup>
-import { computed, watch } from 'vue';
+import { computed } from 'vue';
 import { useAuth } from '@/composables/useAuth';
 import { useDisplay } from 'vuetify';
 import { useRoute, useRouter } from 'vue-router';
 import NotificationBell from '@/components/NotificationBell.vue';
-import { getFirestore, collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 
 // Pega o estado de loading do nosso composable de autenticação
 const { loading, barbeariaInfo, isReady } = useAuth();
@@ -73,70 +72,6 @@ const { loading, barbeariaInfo, isReady } = useAuth();
 const { mobile } = useDisplay();
 const route = useRoute();
 const router = useRouter();
-
-// --- LÓGICA DE NOTIFICAÇÃO EM TEMPO REAL ---
-
-// Função para disparar a notificação visual e sonora
-const triggerNotification = (notification) => {
-  // Toca o som (a função vem do script em index.html)
-  if (typeof generateAndPlaySound === 'function') {
-    generateAndPlaySound();
-  } else {
-    console.warn('Função generateAndPlaySound não encontrada.');
-  }
-
-  // Exibe a notificação do navegador
-  if (!('Notification' in window)) {
-    alert('Este navegador não suporta notificações de desktop');
-    return;
-  }
-
-  const showNotification = () => {
-    new Notification('Novo Agendamento!', {
-      body: notification.message,
-      icon: '/favicon.ico'
-    });
-  };
-
-  if (Notification.permission === 'granted') {
-    showNotification();
-  } else if (Notification.permission !== 'denied') {
-    Notification.requestPermission().then((permission) => {
-      if (permission === 'granted') {
-        showNotification();
-      }
-    });
-  }
-};
-
-// Observa quando a autenticação está pronta e o ID da barbearia está disponível
-watch(isReady, (ready) => {
-  if (ready && barbeariaInfo.value?.uid) {
-    const db = getFirestore();
-    const notificationsRef = collection(db, 'barbearias', barbeariaInfo.value.uid, 'notifications');
-    
-    // Query para pegar apenas notificações criadas a partir do momento que o app carrega
-    const q = query(
-      notificationsRef,
-      where('timestamp', '>', new Date().toISOString()),
-      orderBy('timestamp', 'desc')
-    );
-
-    onSnapshot(q, (snapshot) => {
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added') {
-          console.log('Nova notificação recebida: ', change.doc.data());
-          triggerNotification(change.doc.data());
-        }
-      });
-    }, (error) => {
-      console.error('Erro ao escutar por notificações:', error);
-    });
-  }
-}, { immediate: true });
-
-
-// --- LÓGICA EXISTENTE DO COMPONENTE ---
 
 // Lógica para o banner de trial
 const trialDaysRemaining = computed(() => {
@@ -147,6 +82,7 @@ const trialDaysRemaining = computed(() => {
   if (!trialEndDate) return null;
 
   const today = new Date();
+  // Zera a hora do dia para comparar apenas as datas
   today.setHours(0, 0, 0, 0);
   
   const diffTime = trialEndDate.getTime() - today.getTime();
@@ -156,6 +92,7 @@ const trialDaysRemaining = computed(() => {
 });
 
 const showTrialBanner = computed(() => {
+  // Mostra o banner se o usuário estiver em trial e não estiver na página de login
   return trialDaysRemaining.value !== null && route.name !== 'Login';
 });
 
