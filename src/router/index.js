@@ -78,7 +78,7 @@ const router = createRouter({
     },
     {
       path: '/perfil',
-_      name: 'perfil',
+      name: 'perfil',
       component: PerfilView,
       meta: { requiresAuth: true }
     },

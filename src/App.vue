@@ -22,7 +22,7 @@
     </v-app-bar>
 
     <!-- MENU LATERAL (DRAWER) -->
-    <v-navigation-drawer v-if="showLayout" v-model="drawer" :rail="rail" @click="rail = false" app>
+    <v-navigation-drawer v-if="showLayout" v-model="drawer" :rail="rail" app>
       <v-list-item
         :prepend-avatar="user?.photoURL"
         :title="user?.displayName || user?.email"
@@ -30,7 +30,7 @@
         nav
       >
         <template v-slot:append>
-          <v-btn variant="text" icon="mdi-chevron-left" @click.stop="toggleRail"></v-btn>
+          <v-btn variant="text" :icon="rail ? 'mdi-chevron-right' : 'mdi-chevron-left'" @click.stop="toggleRail"></v-btn>
         </template>
       </v-list-item>
 
@@ -98,8 +98,9 @@
 
       <template v-slot:append>
         <div class="pa-2">
-          <v-btn color="red" variant="outlined" block @click="logout" prepend-icon="mdi-logout">
-            Sair
+          <v-btn :width="rail ? '48' : '100%'" color="red" variant="outlined" block @click="logout" :prepend-icon="rail ? '' : 'mdi-logout'">
+            <span v-if="!rail">Sair</span>
+            <v-icon v-else>mdi-logout</v-icon>
           </v-btn>
         </div>
       </template>
@@ -246,8 +247,7 @@ const abrirLandingPage = () => {
   const slug = barbeariaInfo.value?.slug;
   if (slug) {
     window.open(`/b/${slug}`, '_blank');
-  }
-  else {
+  } else {
     alert('Apelido da barbearia (slug) não encontrado.');
   }
 };
