@@ -8,6 +8,11 @@ import ClientesView from '../views/ClientesView.vue'
 import AnalyticsView from '../views/AnalyticsView.vue'
 import ChatView from '../views/ChatView.vue'
 import BillingView from '../views/BillingView.vue';
+import ServicosView from '../views/ServicosView.vue';
+import RelatoriosView from '../views/RelatoriosView.vue';
+import AgendamentosView from '../views/AgendamentosView.vue';
+import PerfilView from '../views/PerfilView.vue';
+import ConfiguracoesView from '../views/ConfiguracoesView.vue';
 import { guestGuard } from './authGuard.js'
 
 /**
@@ -51,6 +56,36 @@ const router = createRouter({
       path: '/clientes',
       name: 'clientes',
       component: ClientesView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/servicos',
+      name: 'servicos',
+      component: ServicosView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/relatorios',
+      name: 'relatorios',
+      component: RelatoriosView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/agendamentos',
+      name: 'agendamentos',
+      component: AgendamentosView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/perfil',
+_      name: 'perfil',
+      component: PerfilView,
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/configuracoes',
+      name: 'configuracoes',
+      component: ConfiguracoesView,
       meta: { requiresAuth: true }
     },
     {

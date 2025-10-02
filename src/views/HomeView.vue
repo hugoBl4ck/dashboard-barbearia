@@ -2,23 +2,13 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useAuth } from '@/composables/useAuth'
 import { useTenant } from '@/composables/useTenant'
-import { useRoute } from 'vue-router'
-import HorariosView from './HorariosView.vue'
-import ServicosView from './ServicosView.vue'
-import ClientesView from './ClientesView.vue'
-import PerfilView from './PerfilView.vue'
-import ConfiguracoesView from './ConfiguracoesView.vue'
-import AgendamentosView from './AgendamentosView.vue'
-import RelatoriosView from './RelatoriosView.vue'
 
 // --- HOOKS ---
 const auth = useAuth()
 const tenant = useTenant()
-const route = useRoute()
 
 // --- REFS COMPUTADOS PARA FACILIDADE ---
 const barbeariaInfo = computed(() => auth.barbeariaInfo)
-const currentRoute = computed(() => route.name)
 
 // --- ESTADO GLOBAL ---
 const loadingData = ref(false)
@@ -382,197 +372,159 @@ onUnmounted(() => {
 
     <!-- DASHBOARD PRINCIPAL -->
     <template v-else-if="auth.isReady.value">
-        <!-- CONTEÚDO BASEADO NA ROTA ATUAL -->
-        <div v-if="currentRoute === 'home' || currentRoute === 'dashboard'">
-          <v-container fluid class="pa-6 page-container">
-            <!-- NAVEGAÇÃO DE DATA -->
-            <v-card flat class="d-flex align-center pa-2 mb-6 date-nav-card" color="surface">
-              <v-btn variant="text" icon="mdi-chevron-left" @click="mudarDia(-1)"></v-btn>
-              <v-spacer></v-spacer>
-              <div class="text-center">
-                <h2 class="text-h6 font-weight-medium">{{ dataFormatada.diaDaSemana }}</h2>
-                <p class="text-caption text-medium-emphasis">{{ dataFormatada.restoDaData }}</p>
-              </div>
-              <v-spacer></v-spacer>
-              <v-btn variant="text" icon="mdi-chevron-right" @click="mudarDia(1)"></v-btn>
-              <v-btn variant="text" @click="irParaHoje" class="ml-2">Hoje</v-btn>
+        <v-container fluid class="pa-6 page-container">
+        <!-- NAVEGAÇÃO DE DATA -->
+        <v-card flat class="d-flex align-center pa-2 mb-6 date-nav-card" color="surface">
+            <v-btn variant="text" icon="mdi-chevron-left" @click="mudarDia(-1)"></v-btn>
+            <v-spacer></v-spacer>
+            <div class="text-center">
+            <h2 class="text-h6 font-weight-medium">{{ dataFormatada.diaDaSemana }}</h2>
+            <p class="text-caption text-medium-emphasis">{{ dataFormatada.restoDaData }}</p>
+            </div>
+            <v-spacer></v-spacer>
+            <v-btn variant="text" icon="mdi-chevron-right" @click="mudarDia(1)"></v-btn>
+            <v-btn variant="text" @click="irParaHoje" class="ml-2">Hoje</v-btn>
+        </v-card>
+
+        <!-- CARDS DE INDICADORES (KPIs) -->
+        <v-row>
+            <v-col cols="12" sm="6" md="6" lg="3">
+            <v-card elevation="0" class="kpi-card" color="blue">
+                <div class="d-flex justify-space-between align-center">
+                <div>
+                    <p class="kpi-label">AGENDAMENTOS (DIA)</p>
+                    <p class="kpi-number">{{ estatisticasDia.agendados }}</p>
+                </div>
+                <v-icon size="48" class="kpi-icon">mdi-calendar-check</v-icon>
+                </div>
             </v-card>
+            </v-col>
+            <v-col cols="12" sm="6" md="6" lg="3">
+            <v-card elevation="0" class="kpi-card" color="green">
+                <div class="d-flex justify-space-between align-center">
+                <div>
+                    <p class="kpi-label">FATURAMENTO (DIA)</p>
+                    <p class="kpi-number">{{ estatisticasDia.faturamentoFormatado }}</p>
+                </div>
+                <v-icon size="48" class="kpi-icon">mdi-currency-usd</v-icon>
+                </div>
+            </v-card>
+            </v-col>
+            <v-col cols="12" sm="12" md="12" lg="6">
+            <v-card elevation="0" class="kpi-card pa-4" color="deep-purple-darken-1">
+                <div v-if="proximoAgendamento" class="d-flex align-center fill-height">
+                <v-avatar color="white" class="mr-4">
+                    <v-icon color="deep-purple-darken-1">mdi-account-clock</v-icon>
+                </v-avatar>
+                <div>
+                    <p class="kpi-label">PRÓXIMO CLIENTE</p>
+                    <p class="text-h6 font-weight-bold">
+                    {{ proximoAgendamento.NomeCliente }} às
+                    {{
+                        new Date(proximoAgendamento.DataHoraISO).toLocaleTimeString('pt-BR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        })
+                    }}
+                    </p>
+                </div>
+                </div>
+                <div v-else class="d-flex align-center fill-height">
+                <v-icon class="mr-4">mdi-coffee</v-icon>
+                <p>Sem mais clientes por hoje.</p>
+                </div>
+            </v-card>
+            </v-col>
+        </v-row>
 
-            <!-- CARDS DE INDICADORES (KPIs) -->
-            <v-row>
-              <v-col cols="12" sm="6" md="6" lg="3">
-                <v-card elevation="0" class="kpi-card" color="blue">
-                  <div class="d-flex justify-space-between align-center">
-                    <div>
-                      <p class="kpi-label">AGENDAMENTOS (DIA)</p>
-                      <p class="kpi-number">{{ estatisticasDia.agendados }}</p>
+        <!-- ÁREA PRINCIPAL -->
+        <v-card elevation="0" class="mt-6">
+            <v-card-title class="d-flex align-center">
+            <v-icon class="mr-2">mdi-clock-outline</v-icon>Agenda do Dia
+            <v-spacer></v-spacer>
+            <v-btn color="primary" @click="abrirModalParaNovoVazio" prepend-icon="mdi-plus">
+                Novo Agendamento
+            </v-btn>
+            </v-card-title>
+            <v-divider></v-divider>
+
+            <!-- CONTEÚDO DA AGENDA -->
+            <div v-if="loadingData" class="text-center pa-16">
+            <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
+            <p class="mt-4">Carregando agenda...</p>
+            </div>
+
+            <div v-else-if="!loadingData && estaFechado" class="text-center pa-16">
+            <v-icon size="64" color="grey">mdi-door-closed-lock</v-icon>
+            <p class="mt-4 text-medium-emphasis">Barbearia Fechada</p>
+            <p class="text-caption text-medium-emphasis">
+                Configure os horários de funcionamento
+            </p>
+            </div>
+
+            <v-container v-else fluid>
+            <v-row dense>
+                <v-col
+                v-for="slot in agendaDoDia"
+                :key="slot.timestamp"
+                cols="12"
+                sm="6"
+                md="4"
+                lg="3"
+                >
+                <v-card
+                    class="slot-card"
+                    :variant="getSlotVariant(slot)"
+                    :color="getSlotColor(slot)"
+                    @click="handleItemClick(slot)"
+                    :disabled="slot.tipo === 'passado'"
+                >
+                    <v-card-text class="pa-3 text-center">
+                    <div class="font-weight-bold mb-1" :class="getTimeTextColor(slot)">
+                        {{ slot.horarioFormatado }}
                     </div>
-                    <v-icon size="48" class="kpi-icon">mdi-calendar-check</v-icon>
-                  </div>
-                </v-card>
-              </v-col>
-              <v-col cols="12" sm="6" md="6" lg="3">
-                <v-card elevation="0" class="kpi-card" color="green">
-                  <div class="d-flex justify-space-between align-center">
-                    <div>
-                      <p class="kpi-label">FATURAMENTO (DIA)</p>
-                      <p class="kpi-number">{{ estatisticasDia.faturamentoFormatado }}</p>
-                    </div>
-                    <v-icon size="48" class="kpi-icon">mdi-currency-usd</v-icon>
-                  </div>
-                </v-card>
-              </v-col>
-              <v-col cols="12" sm="12" md="12" lg="6">
-                <v-card elevation="0" class="kpi-card pa-4" color="deep-purple-darken-1">
-                  <div v-if="proximoAgendamento" class="d-flex align-center fill-height">
-                    <v-avatar color="white" class="mr-4">
-                      <v-icon color="deep-purple-darken-1">mdi-account-clock</v-icon>
-                    </v-avatar>
-                    <div>
-                      <p class="kpi-label">PRÓXIMO CLIENTE</p>
-                      <p class="text-h6 font-weight-bold">
-                        {{ proximoAgendamento.NomeCliente }} às
-                        {{
-                          new Date(proximoAgendamento.DataHoraISO).toLocaleTimeString('pt-BR', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })
-                        }}
-                      </p>
-                    </div>
-                  </div>
-                  <div v-else class="d-flex align-center fill-height">
-                    <v-icon class="mr-4">mdi-coffee</v-icon>
-                    <p>Sem mais clientes por hoje.</p>
-                  </div>
-                </v-card>
-              </v-col>
-            </v-row>
-
-            <!-- ÁREA PRINCIPAL -->
-            <v-card elevation="0" class="mt-6">
-              <v-card-title class="d-flex align-center">
-                <v-icon class="mr-2">mdi-clock-outline</v-icon>Agenda do Dia
-                <v-spacer></v-spacer>
-                <v-btn color="primary" @click="abrirModalParaNovoVazio" prepend-icon="mdi-plus">
-                  Novo Agendamento
-                </v-btn>
-              </v-card-title>
-              <v-divider></v-divider>
-
-              <!-- CONTEÚDO DA AGENDA -->
-              <div v-if="loadingData" class="text-center pa-16">
-                <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
-                <p class="mt-4">Carregando agenda...</p>
-              </div>
-
-              <div v-else-if="!loadingData && estaFechado" class="text-center pa-16">
-                <v-icon size="64" color="grey">mdi-door-closed-lock</v-icon>
-                <p class="mt-4 text-medium-emphasis">Barbearia Fechada</p>
-                <p class="text-caption text-medium-emphasis">
-                  Configure os horários de funcionamento
-                </p>
-              </div>
-
-              <v-container v-else fluid>
-                <v-row dense>
-                  <v-col
-                    v-for="slot in agendaDoDia"
-                    :key="slot.timestamp"
-                    cols="12"
-                    sm="6"
-                    md="4"
-                    lg="3"
-                  >
-                    <v-card
-                      class="slot-card"
-                      :variant="getSlotVariant(slot)"
-                      :color="getSlotColor(slot)"
-                      @click="handleItemClick(slot)"
-                      :disabled="slot.tipo === 'passado'"
+                    <v-chip size="small" :color="getChipColor(slot.status)" class="mb-1">
+                        <v-icon start size="16" :color="getChipIconColor(slot.status)">
+                        {{ getChipIcon(slot.status) }}
+                        </v-icon>
+                        <span :class="getChipTextColor(slot.status)">{{ slot.titulo }}</span>
+                    </v-chip>
+                    <div
+                        class="text-caption truncate-text mb-1"
+                        :class="getDetailsTextColor(slot)"
+                        v-if="slot.tipo === 'agendamento' || slot.tipo === 'cancelado'"
                     >
-                      <v-card-text class="pa-3 text-center">
-                        <div class="font-weight-bold mb-1" :class="getTimeTextColor(slot)">
-                          {{ slot.horarioFormatado }}
-                        </div>
-                        <v-chip size="small" :color="getChipColor(slot.status)" class="mb-1">
-                          <v-icon start size="16" :color="getChipIconColor(slot.status)">
-                            {{ getChipIcon(slot.status) }}
-                          </v-icon>
-                          <span :class="getChipTextColor(slot.status)">{{ slot.titulo }}</span>
-                        </v-chip>
-                        <div
-                          class="text-caption truncate-text mb-1"
-                          :class="getDetailsTextColor(slot)"
-                          v-if="slot.tipo === 'agendamento' || slot.tipo === 'cancelado'"
-                        >
-                          {{ slot.detalhes }}
-                        </div>
-                        <div
-                          class="text-caption font-weight-bold"
-                          :class="getPriceTextColor(slot)"
-                          v-if="
-                            (slot.tipo === 'agendamento' || slot.tipo === 'cancelado') && slot.preco
-                          "
-                        >
-                          {{ formatCurrency(slot.preco) }}
-                        </div>
-                      </v-card-text>
-                    </v-card>
-                  </v-col>
-                </v-row>
-              </v-container>
-            </v-card>
-          </v-container>
-        </div>
-
-        <!-- PÁGINA DE HORÁRIOS -->
-        <HorariosView v-else-if="currentRoute === 'horarios'" />
-
-        <!-- PÁGINA DE SERVIÇOS -->
-        <ServicosView v-else-if="currentRoute === 'servicos'" />
-
-        <!-- PÁGINA DE CLIENTES -->
-        <ClientesView v-else-if="currentRoute === 'clientes'" />
-
-        <!-- PÁGINA DE AGENDAMENTOS -->
-        <AgendamentosView v-else-if="currentRoute === 'agendamentos'" />
-
-        <!-- PÁGINA DE RELATÓRIOS -->
-        <RelatoriosView v-else-if="currentRoute === 'relatorios'" />
-
-        <!-- PÁGINA DE PERFIL -->
-        <PerfilView v-else-if="currentRoute === 'perfil'" />
-
-        <!-- PÁGINA DE CONFIGURAÇÕES -->
-        <ConfiguracoesView v-else-if="currentRoute === 'configuracoes'" />
-
-        <!-- OUTRAS SEÇÕES (PLACEHOLDER) -->
-        <div v-else>
-          <v-container class="pa-6">
-            <v-card class="pa-8 text-center">
-              <v-icon size="64" color="grey">mdi-construction</v-icon>
-              <h2 class="text-h4 mt-4 mb-2">Em Desenvolvimento</h2>
-              <p class="text-body-1 text-medium-emphasis mb-4">
-                A seção "{{ currentRoute }}" está sendo desenvolvida.
-              </p>
-              <v-btn color="primary" to="/"> Voltar ao Dashboard </v-btn>
-            </v-card>
-          </v-container>
-        </div>
+                        {{ slot.detalhes }}
+                    </div>
+                    <div
+                        class="text-caption font-weight-bold"
+                        :class="getPriceTextColor(slot)"
+                        v-if="
+                        (slot.tipo === 'agendamento' || slot.tipo === 'cancelado') && slot.preco
+                        "
+                    >
+                        {{ formatCurrency(slot.preco) }}
+                    </div>
+                    </v-card-text>
+                </v-card>
+                </v-col>
+            </v-row>
+            </v-container>
+        </v-card>
+        </v-container>
 
         <!-- MODAL DE AGENDAMENTO -->
         <v-dialog v-model="modalAberto" max-width="500px" persistent>
-          <v-card class="pa-4">
+        <v-card class="pa-4">
             <v-card-title class="text-h5">
-              {{ editando ? 'Editar' : 'Novo' }} Agendamento
+            {{ editando ? 'Editar' : 'Novo' }} Agendamento
             </v-card-title>
             <v-card-subtitle>
-              {{ dataFormatada.diaDaSemana }}, {{ dataFormatada.restoDaData }} às {{ horarioModal }}
+            {{ dataFormatada.diaDaSemana }}, {{ dataFormatada.restoDaData }} às {{ horarioModal }}
             </v-card-subtitle>
 
             <v-card-text>
-              <v-select
+            <v-select
                 v-model="servicoSelecionado"
                 :items="listaServicos"
                 item-title="nome"
@@ -583,66 +535,66 @@ onUnmounted(() => {
                 return-object
                 :disabled="editando"
                 class="mb-4"
-              ></v-select>
+            ></v-select>
 
-              <v-text-field
+            <v-text-field
                 v-model="nomeCliente"
                 label="Nome do Cliente"
                 variant="outlined"
                 density="compact"
                 class="mb-4"
-              ></v-text-field>
+            ></v-text-field>
 
-              <v-text-field
+            <v-text-field
                 v-model="telefoneCliente"
                 label="Telefone"
                 variant="outlined"
                 density="compact"
                 class="mb-4"
-              ></v-text-field>
+            ></v-text-field>
 
-              <v-text-field
+            <v-text-field
                 v-model.number="precoServico"
                 label="Valor Final (R$)"
                 variant="outlined"
                 density="compact"
                 type="number"
                 prefix="R$"
-              ></v-text-field>
+            ></v-text-field>
             </v-card-text>
 
             <v-card-actions class="justify-end">
-              <v-btn text @click="fecharModal">Cancelar</v-btn>
-              <v-btn
+            <v-btn text @click="fecharModal">Cancelar</v-btn>
+            <v-btn
                 v-if="editando"
                 color="red"
                 text
                 @click="excluirAgendamento"
                 :loading="deletingLoading"
-              >
+            >
                 Excluir
-              </v-btn>
-              <v-btn
+            </v-btn>
+            <v-btn
                 color="primary"
                 variant="flat"
                 @click="salvarAgendamento"
                 :loading="savingLoading"
-              >
+            >
                 {{ editando ? 'Salvar' : 'Adicionar' }}
-              </v-btn>
+            </v-btn>
             </v-card-actions>
-          </v-card>
+        </v-card>
         </v-dialog>
 
         <!-- SNACKBAR -->
         <v-snackbar
-          v-model="showNotification"
-          :timeout="3000"
-          :color="notificationType"
-          location="top"
+        v-model="showNotification"
+        :timeout="3000"
+        :color="notificationType"
+        location="top"
         >
-          <v-icon class="mr-2">mdi-check-circle</v-icon>
-          {{ notificationMessage }}
+        <v-icon class="mr-2">mdi-check-circle</v-icon>
+        {{ notificationMessage }}
         </v-snackbar>
     </template>
 

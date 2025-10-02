@@ -30,7 +30,7 @@
         nav
       >
         <template v-slot:append>
-          <v-btn variant="text" icon="mdi-chevron-left" @click.stop="rail = !rail"></v-btn>
+          <v-btn variant="text" icon="mdi-chevron-left" @click.stop="toggleRail"></v-btn>
         </template>
       </v-list-item>
 
@@ -41,42 +41,42 @@
           prepend-icon="mdi-view-dashboard"
           title="Dashboard"
           value="dashboard"
-          @click="navigateTo('home')"
+          to="/"
         ></v-list-item>
 
         <v-list-item
           prepend-icon="mdi-calendar-check"
           title="Agendamentos"
           value="agendamentos"
-          @click="navigateTo('agendamentos')"
+          to="/agendamentos"
         ></v-list-item>
 
         <v-list-item
           prepend-icon="mdi-account-group"
           title="Clientes"
           value="clientes"
-          @click="navigateTo('clientes')"
+          to="/clientes"
         ></v-list-item>
 
         <v-list-item
           prepend-icon="mdi-scissors-cutting"
           title="Serviços"
           value="servicos"
-          @click="navigateTo('servicos')"
+          to="/servicos"
         ></v-list-item>
 
         <v-list-item
           prepend-icon="mdi-clock-outline"
           title="Horários"
           value="horarios"
-          @click="navigateTo('horarios')"
+          to="/horarios"
         ></v-list-item>
 
         <v-list-item
           prepend-icon="mdi-chart-line"
           title="Relatórios"
           value="relatorios"
-          @click="navigateTo('relatorios')"
+          to="/relatorios"
         ></v-list-item>
 
         <v-divider class="my-2"></v-divider>
@@ -92,7 +92,7 @@
           prepend-icon="mdi-cog"
           title="Configurações"
           value="configuracoes"
-          @click="navigateTo('configuracoes')"
+          to="/configuracoes"
         ></v-list-item>
       </v-list>
 
@@ -138,10 +138,10 @@
             <v-list-item-subtitle>{{ barbeariaInfo?.nome }}</v-list-item-subtitle>
           </v-list-item>
           <v-divider></v-divider>
-          <v-list-item @click="navigateTo('perfil')" prepend-icon="mdi-account-edit">
+          <v-list-item to="/perfil" prepend-icon="mdi-account-edit">
             <v-list-item-title>Meu Perfil</v-list-item-title>
           </v-list-item>
-          <v-list-item @click="navigateTo('configuracoes')" prepend-icon="mdi-cog">
+          <v-list-item to="/configuracoes" prepend-icon="mdi-cog">
             <v-list-item-title>Configurações</v-list-item-title>
           </v-list-item>
           <v-list-item to="/billing" prepend-icon="mdi-credit-card-outline">
@@ -199,7 +199,7 @@ const drawer = ref(mdAndUp.value);
 const rail = ref(false);
 const isDarkTheme = ref(false);
 
-const showLayout = computed(() => route.name !== 'Login');
+const showLayout = computed(() => !['Login', 'PublicBarbershopPage'].includes(route.name));
 
 const trialDaysRemaining = computed(() => {
   if (!isReady.value || barbeariaInfo.value?.statusAssinatura !== 'trialing') {
@@ -218,16 +218,21 @@ const trialDaysRemaining = computed(() => {
 });
 
 const showTrialBanner = computed(() => {
-  return trialDaysRemaining.value !== null && route.name !== 'Login';
+  const excludedRoutes = ['Login', 'PublicBarbershopPage'];
+  return trialDaysRemaining.value !== null && !excludedRoutes.includes(route.name);
 });
 
 const showBackButton = computed(() => {
-  const nonBackButtonRoutes = ['home', 'Login', 'ClientLandingPage'];
+  const nonBackButtonRoutes = ['home', 'Login', 'PublicBarbershopPage'];
   return mobile.value && !nonBackButtonRoutes.includes(route.name);
 });
 
 const goBack = () => {
   router.back();
+};
+
+const toggleRail = () => {
+  rail.value = !rail.value;
 };
 
 const toggleTheme = () => {
@@ -237,15 +242,12 @@ const toggleTheme = () => {
   localStorage.setItem('barberapp-theme', newTheme);
 };
 
-const navigateTo = (routeName) => {
-  router.push({ name: routeName });
-};
-
 const abrirLandingPage = () => {
   const slug = barbeariaInfo.value?.slug;
   if (slug) {
     window.open(`/b/${slug}`, '_blank');
-  } else {
+  }
+  else {
     alert('Apelido da barbearia (slug) não encontrado.');
   }
 };
@@ -398,10 +400,6 @@ input, textarea {
 /* Animações de entrada para elementos */
 .fade-in {
   animation: fadeIn 0.5s ease-out;
-}
-
-.slide-up {
-  animation: slideUp 0.6s ease-out;
 }
 
 @keyframes fadeIn {
